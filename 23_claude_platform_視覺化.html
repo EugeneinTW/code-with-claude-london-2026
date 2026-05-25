@@ -1,0 +1,946 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Getting More Out of the Claude Platform — The Claude Dispatch · №23</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper:        #efe8d6;
+  --paper-deep:   #e4d9be;
+  --paper-edge:   #d6c89f;
+  --ink:          #1a1410;
+  --ink-soft:     #4a3a2b;
+  --ink-faint:    #7a6651;
+  --cardinal:     #8c1515;
+  --cardinal-dk:  #5e0e0e;
+  --cardinal-soft:#b34646;
+  --gold:         #b48729;
+  --gold-soft:    #d8b261;
+  --gold-bg:      #f7eccd;
+  --moss:         #586a3f;
+  --moss-bg:      #e6e6c9;
+  --rule:         rgba(26,20,16,0.14);
+  --rule-soft:    rgba(26,20,16,0.07);
+}
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+body {
+  background:var(--paper); color:var(--ink);
+  font-family:'Newsreader','Noto Serif TC',Georgia,serif;
+  font-size:18px; line-height:1.72; overflow-x:hidden;
+}
+body::before {
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:999;
+  background-image:
+    radial-gradient(rgba(26,20,16,0.04) 1px, transparent 1px),
+    radial-gradient(rgba(26,20,16,0.025) 1px, transparent 1px);
+  background-size:3px 3px,7px 7px; background-position:0 0,1px 1px;
+  opacity:.55; mix-blend-mode:multiply;
+}
+#progress-bar { position:fixed; top:0; left:0; height:3px; width:0%; background:linear-gradient(90deg,var(--cardinal),var(--gold)); z-index:1000; transition:width 0.1s linear; }
+#cursor { position:fixed; width:22px; height:22px; border-radius:50%; border:2px solid var(--cardinal); pointer-events:none; z-index:9998; transform:translate(-50%,-50%); transition:transform 0.15s ease,width 0.2s,height 0.2s; mix-blend-mode:multiply; }
+#cursor.big { width:52px; height:52px; }
+
+.masthead { background:var(--ink); color:var(--paper); text-align:center; padding:10px 32px; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; }
+.masthead span { color:var(--gold-soft); margin:0 8px; }
+
+.hero { border-bottom:2px solid var(--ink); padding:52px 0 44px; background:var(--paper-deep); }
+.hero .container { max-width:1080px; margin:0 auto; padding:0 32px; }
+.hero-grid { display:grid; grid-template-columns:160px 1fr; gap:40px; align-items:start; }
+.issue-stamp { font-family:'Fraunces',serif; font-size:72px; font-weight:700; line-height:1; color:var(--cardinal); transform:rotate(-4deg); white-space:nowrap; text-shadow:2px 2px 0 var(--paper),3px 3px 0 var(--cardinal-dk); display:flex; flex-direction:column; align-items:center; }
+.issue-stamp small { font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.2em; color:var(--gold); font-weight:700; margin-top:4px; }
+h1 { font-family:'Fraunces',serif; font-size:clamp(34px,4.6vw,58px); font-weight:800; line-height:1.1; color:var(--ink); margin-bottom:16px; }
+h1 em { font-style:italic; color:var(--cardinal); }
+.deck { font-family:'Newsreader',serif; font-size:21px; line-height:1.55; color:var(--ink-soft); max-width:760px; margin-bottom:20px; }
+.byline { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-faint); letter-spacing:0.12em; text-transform:uppercase; display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
+.byline-sep { color:var(--rule); }
+
+.stat-strip { background:var(--ink); color:var(--paper); display:flex; border-bottom:2px solid var(--gold); }
+.stat-item { flex:1; padding:22px 24px; border-right:1px solid rgba(239,232,214,0.12); cursor:default; position:relative; }
+.stat-item:last-child { border-right:none; }
+.stat-num { font-family:'Fraunces',serif; font-size:38px; font-weight:800; color:var(--gold-soft); line-height:1; display:block; }
+.stat-label { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:rgba(239,232,214,0.55); margin-top:6px; display:block; }
+.stat-tooltip { position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%) translateY(6px); background:var(--ink); color:var(--paper); border:1px solid var(--gold); padding:10px 14px; font-size:13px; font-family:'Newsreader',serif; width:220px; text-align:center; line-height:1.5; opacity:0; pointer-events:none; transition:all 0.2s ease; z-index:100; }
+.stat-tooltip::after { content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:var(--gold); }
+.stat-item:hover .stat-tooltip { opacity:1; transform:translateX(-50%) translateY(0); }
+
+.nav-wrap { position:sticky; top:0; z-index:200; background:var(--paper-deep); border-bottom:2px solid var(--ink); display:flex; align-items:center; padding:0 32px; overflow-x:auto; }
+.nav-wrap button { font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.1em; text-transform:uppercase; background:none; border:none; color:var(--ink-faint); padding:16px 20px; cursor:pointer; white-space:nowrap; transition:color 0.2s; position:relative; }
+.nav-wrap button:hover, .nav-wrap button.active { color:var(--ink); }
+.tab-indicator { position:absolute; bottom:0; height:2px; background:var(--cardinal); transition:left 0.3s cubic-bezier(.4,0,.2,1),width 0.3s cubic-bezier(.4,0,.2,1); }
+
+.container { max-width:1080px; margin:0 auto; padding:0 32px; }
+.tab-content { display:none; padding:60px 0; }
+.tab-content.active { display:block; }
+
+.chapter { position:relative; margin-bottom:72px; opacity:0; transform:translateY(22px); transition:opacity 0.6s ease,transform 0.6s ease; }
+.chapter.revealed { opacity:1; transform:translateY(0); }
+.roman { position:absolute; right:0; top:-16px; font-family:'Fraunces',serif; font-size:220px; font-weight:800; font-style:italic; color:var(--ink); opacity:0.045; line-height:1; pointer-events:none; z-index:0; user-select:none; }
+h2 { font-family:'Fraunces',serif; font-size:44px; font-weight:800; line-height:1.15; margin-bottom:28px; padding-left:20px; border-left:4px solid var(--cardinal); position:relative; z-index:1; }
+h3 { font-family:'Fraunces',serif; font-size:22px; font-weight:700; margin:32px 0 14px; color:var(--ink); }
+h4 { font-family:'Fraunces',serif; font-size:18px; font-weight:700; margin:20px 0 10px; color:var(--ink); }
+h5 { font-family:'Fraunces',serif; font-size:18px; font-weight:600; font-style:italic; margin-bottom:10px; }
+p { max-width:760px; color:var(--ink-soft); margin-bottom:18px; position:relative; z-index:1; }
+.lede { font-size:21px; color:var(--ink); font-weight:400; line-height:1.6; margin-bottom:28px; }
+
+.pullquote { max-width:820px; border-left:4px solid var(--cardinal); padding:24px 28px; margin:36px 0; background:var(--gold-bg); position:relative; z-index:1; }
+.pullquote p { font-size:20px; font-style:italic; color:var(--ink); max-width:100%; margin-bottom:8px; }
+.pullquote .zh { display:block; border-top:1px dashed var(--rule); padding-top:10px; margin-top:10px; font-size:15px; color:var(--ink-faint); font-style:normal; }
+.pullquote cite { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-faint); letter-spacing:0.1em; }
+
+aside.primer { background:var(--gold-bg); border:1px solid var(--paper-edge); border-left:4px solid var(--gold); padding:24px 28px; margin:32px 0; max-width:820px; position:relative; z-index:1; }
+.primer-tag { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:var(--gold); display:block; margin-bottom:8px; }
+aside.primer h5 { color:var(--ink); }
+aside.primer p { font-size:16px; max-width:100%; color:var(--ink-soft); }
+aside.primer ul { padding-left:20px; margin:10px 0; }
+aside.primer li { font-size:16px; color:var(--ink-soft); margin-bottom:6px; }
+
+.story { background:var(--paper-deep); border:1px solid var(--paper-edge); border-top:3px solid var(--cardinal); padding:28px 32px; margin:36px 0; max-width:820px; position:relative; z-index:1; }
+.story-tag { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:var(--cardinal); display:block; margin-bottom:10px; }
+.story h4 { font-style:italic; color:var(--ink); margin-top:0; }
+.story p { font-size:16px; max-width:100%; }
+.story blockquote { border-left:3px solid var(--cardinal-soft); padding:10px 16px; margin:14px 0; font-style:italic; color:var(--cardinal-dk); background:rgba(140,21,21,0.04); }
+
+.discuss { background:var(--moss-bg); border-left:4px solid var(--moss); padding:22px 28px; margin:24px 0; max-width:820px; position:relative; z-index:1; }
+.discuss p { font-size:16px; max-width:100%; color:var(--ink); font-weight:500; margin-bottom:10px; }
+.discuss details summary { font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.1em; color:var(--moss); cursor:pointer; text-transform:uppercase; padding:6px 0; }
+.discuss details ul { padding-left:20px; margin-top:10px; }
+.discuss details li { font-size:15px; color:var(--ink-soft); margin-bottom:8px; }
+
+.term { background:rgba(180,135,41,0.15); border-bottom:1px dashed var(--cardinal); cursor:help; position:relative; }
+.term::after { content:attr(data-def); position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); background:var(--ink); color:var(--paper); font-family:'Newsreader',serif; font-size:13px; line-height:1.5; padding:8px 12px; width:240px; text-align:center; opacity:0; pointer-events:none; transition:opacity 0.2s ease; z-index:500; white-space:normal; border-bottom:3px solid var(--cardinal); }
+.term:hover::after { opacity:1; }
+
+.duo { display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:820px; margin:28px 0; }
+.duo-card { background:var(--paper-deep); border:1px solid var(--paper-edge); padding:22px 24px; transition:transform 0.18s ease,box-shadow 0.18s ease; cursor:default; }
+.duo-card:hover { transform:translateY(-4px); box-shadow:4px 4px 0 var(--ink); }
+.duo-card h4 { font-size:16px; margin-bottom:8px; }
+.duo-card p { font-size:15px; max-width:100%; margin-bottom:0; }
+.duo-card .tag { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--cardinal); display:block; margin-bottom:6px; }
+
+.ledger { margin:28px 0; max-width:820px; }
+.ledger-item { display:flex; align-items:baseline; gap:16px; padding:14px 16px; border-bottom:1px solid var(--rule); position:relative; transition:padding-left 0.2s ease; cursor:default; }
+.ledger-item::before { content:''; position:absolute; left:0; top:0; bottom:0; width:0; background:var(--cardinal); transition:width 0.25s ease; }
+.ledger-item:hover { padding-left:28px; }
+.ledger-item:hover::before { width:3px; }
+.ledger-num { font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:rgba(26,20,16,0.25); min-width:28px; transition:color 0.2s ease; }
+.ledger-item:hover .ledger-num { color:var(--cardinal); }
+.ledger-text { font-size:16px; color:var(--ink-soft); line-height:1.55; }
+.ledger-text strong { color:var(--ink); }
+
+/* COST PROGRESSION */
+.cost-chart { max-width:820px; margin:36px 0; background:var(--paper-deep); border:1px solid var(--paper-edge); padding:28px 32px; }
+.cost-chart h4 { margin-bottom:22px; }
+.cost-row { display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+.cost-label { font-family:'JetBrains Mono',monospace; font-size:12px; min-width:170px; color:var(--ink-faint); line-height:1.3; }
+.cost-track { flex:1; height:28px; background:var(--paper-edge); border-radius:2px; overflow:hidden; position:relative; }
+.cost-fill { height:100%; width:0%; transition:width 1.5s ease; border-radius:2px; position:relative; }
+.cost-fill.c-red { background:var(--cardinal); }
+.cost-fill.c-orange { background:var(--cardinal-soft); }
+.cost-fill.c-gold { background:var(--gold); }
+.cost-fill.c-moss { background:var(--moss); }
+.cost-amt { font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; min-width:48px; color:var(--ink); }
+
+/* TECHNIQUE FLOW */
+.tech-flow { max-width:820px; margin:36px 0; display:flex; flex-direction:column; gap:0; }
+.tech-step { display:grid; grid-template-columns:52px 1fr; gap:0; border:1px solid var(--paper-edge); margin-bottom:-1px; position:relative; transition:background 0.2s, padding-left 0.2s; cursor:default; }
+.tech-step::before { content:''; position:absolute; left:0; top:0; bottom:0; width:0; background:var(--cardinal); transition:width 0.25s ease; }
+.tech-step:hover { background:var(--gold-bg); padding-left:8px; }
+.tech-step:hover::before { width:4px; }
+.tech-icon { width:52px; background:var(--ink); display:flex; align-items:center; justify-content:center; font-size:22px; color:var(--gold-soft); flex-shrink:0; }
+.tech-body { padding:18px 20px; }
+.tech-body h4 { font-size:16px; margin:0 0 5px; }
+.tech-body p { font-size:15px; max-width:100%; margin-bottom:0; }
+.tech-badge { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--moss); font-weight:700; display:inline-block; background:var(--moss-bg); padding:2px 6px; border-radius:2px; margin-bottom:6px; }
+
+/* ADVISOR FLOW */
+.advisor-flow { max-width:820px; margin:36px 0; padding:28px 32px; background:var(--paper-deep); border:1px solid var(--paper-edge); }
+.advisor-flow h4 { margin-bottom:20px; }
+.advisor-grid { display:grid; grid-template-columns:1fr 60px 1fr; gap:16px; align-items:start; }
+.advisor-box { padding:18px 20px; border:2px solid var(--paper-edge); text-align:center; }
+.advisor-box.primary { border-color:var(--cardinal); }
+.advisor-box.secondary { border-color:var(--gold); }
+.advisor-label { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; display:block; margin-bottom:8px; }
+.advisor-box.primary .advisor-label { color:var(--cardinal); }
+.advisor-box.secondary .advisor-label { color:var(--gold); }
+.advisor-name { font-family:'Fraunces',serif; font-size:24px; font-weight:800; }
+.advisor-role { font-size:13px; color:var(--ink-faint); margin-top:4px; }
+.advisor-arrow { display:flex; align-items:center; justify-content:center; font-size:24px; color:var(--cardinal); font-weight:700; padding-top:32px; }
+.oddball-box { margin-top:16px; padding:12px 16px; background:var(--gold-bg); border:1px dashed var(--gold); font-size:14px; color:var(--ink-soft); text-align:center; }
+
+/* COMPARISON TABLE */
+.compare-table { width:100%; max-width:820px; border-collapse:collapse; margin:28px 0; font-size:15px; }
+.compare-table th { background:var(--ink); color:var(--paper); font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; padding:12px 16px; text-align:left; }
+.compare-table td { padding:12px 16px; border-bottom:1px solid var(--rule); color:var(--ink-soft); vertical-align:top; }
+.compare-table tr:nth-child(even) td { background:var(--paper-deep); }
+.compare-table td:first-child { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-faint); font-weight:700; }
+.compare-table .good { color:var(--moss); font-weight:600; }
+.compare-table .bad { color:var(--cardinal); }
+
+/* CACHE VISUAL */
+.cache-meter { max-width:820px; margin:28px 0; background:var(--paper-deep); border:1px solid var(--paper-edge); padding:24px 28px; }
+.cache-meter h4 { margin-bottom:16px; }
+.cache-bar-wrap { height:40px; background:var(--paper-edge); border-radius:2px; overflow:hidden; position:relative; margin-bottom:12px; }
+.cache-hit { height:100%; width:0%; background:var(--moss); transition:width 1.5s ease; display:flex; align-items:center; justify-content:flex-end; padding-right:10px; }
+.cache-miss { position:absolute; top:0; right:0; height:100%; background:var(--cardinal-soft); opacity:0.4; }
+.cache-labels { display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-faint); }
+.cache-legend { display:flex; gap:20px; margin-top:10px; font-family:'JetBrains Mono',monospace; font-size:12px; }
+.cache-legend span { display:flex; align-items:center; gap:6px; }
+.legend-dot { width:12px; height:12px; border-radius:2px; }
+
+/* STACK */
+.strategy-stack { max-width:820px; margin:32px 0; }
+.stack-item { display:grid; grid-template-columns:48px 1fr; gap:0; border:1px solid var(--paper-edge); margin-bottom:-1px; padding:18px 20px; transition:padding-left 0.2s ease,background 0.2s; cursor:default; position:relative; }
+.stack-item::before { content:''; position:absolute; left:0; top:0; bottom:0; width:0; background:var(--cardinal); transition:width 0.25s ease; }
+.stack-item:hover { padding-left:32px; background:var(--gold-bg); }
+.stack-item:hover::before { width:4px; }
+.stack-num { font-family:'Fraunces',serif; font-size:28px; font-weight:800; font-style:italic; color:rgba(26,20,16,0.15); line-height:1; transition:color 0.2s; }
+.stack-item:hover .stack-num { color:var(--cardinal); }
+.stack-body h4 { font-size:16px; margin:0 0 5px; }
+.stack-body p { font-size:15px; max-width:100%; margin-bottom:0; }
+
+.colophon { background:var(--ink); color:var(--paper-deep); padding:56px 0 36px; border-top:3px solid var(--gold); }
+.colophon .container { max-width:1080px; margin:0 auto; padding:0 32px; }
+.colophon-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:48px; margin-bottom:40px; }
+.col-section h6 { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold-soft); margin-bottom:14px; }
+.col-section p { font-size:14px; line-height:1.7; color:rgba(239,232,214,0.65); max-width:100%; }
+.col-section strong { color:var(--paper-deep); }
+.colophon-rule { border:none; border-top:1px solid rgba(239,232,214,0.12); margin:0 0 20px; }
+.colophon-bottom { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.1em; color:rgba(239,232,214,0.35); text-align:center; }
+
+#back-top { position:fixed; bottom:32px; right:32px; width:46px; height:46px; border-radius:50%; background:var(--cardinal); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--paper); font-size:20px; box-shadow:3px 3px 0 var(--ink); transition:transform 0.2s ease,box-shadow 0.2s ease; z-index:800; }
+#back-top:hover { transform:translateY(-4px); box-shadow:3px 7px 0 var(--ink); }
+
+@media(max-width:900px){
+  .hero-grid { grid-template-columns:1fr; gap:20px; }
+  .duo { grid-template-columns:1fr; }
+  .colophon-grid { grid-template-columns:1fr; gap:28px; }
+  .container { padding:0 22px; }
+  h2 { font-size:32px; }
+  .stat-strip { flex-wrap:wrap; }
+  .stat-item { min-width:50%; }
+  .advisor-grid { grid-template-columns:1fr; }
+  .advisor-arrow { transform:rotate(90deg); padding:0; }
+}
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div id="cursor"></div>
+
+<header class="masthead">
+  THE CLAUDE DISPATCH
+  <span>·</span> CODE WITH CLAUDE LONDON 2026
+  <span>·</span> VOL. I · NO. 23
+  <span>·</span> DAY 2 · 20 MAY 2026
+</header>
+
+<section class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div class="issue-stamp">№23<small>DAY 2</small></div>
+      <div>
+        <h1>Getting More Out of the <em>Claude Platform</em></h1>
+        <p class="deck">Punit Sha（Anthropic 平台 PM）透過虛擬超英公司「HeroCorp」的儀表板，實地展示三大技術如何讓 Agent 成本從 £31 降至 £3——在不犧牲智能的前提下，實現真正的生產級商業應用。</p>
+        <div class="byline">
+          <span>Punit Sha · Anthropic Platform PM &amp; Ben · HeroCorp CTO</span>
+          <span class="byline-sep">·</span>
+          <span>Code with Claude London 2026 · Day 2</span>
+          <span class="byline-sep">·</span>
+          <span>Talk 23 of 24</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="stat-strip">
+  <div class="stat-item">
+    <span class="stat-num">90%</span>
+    <span class="stat-label">Prompt Cache 成本折扣</span>
+    <div class="stat-tooltip">快取的輸入 Token 不需要重新處理，Anthropic 將這份節省直接轉讓給開發者。</div>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">5×</span>
+    <span class="stat-label">80% 命中率時的速率上限</span>
+    <div class="stat-tooltip">快取命中的 Token 不計入速率限制，80% 命中率等於實際速率限制提升 5 倍。</div>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">£31→£3</span>
+    <span class="stat-label">HeroCorp 單次成本</span>
+    <div class="stat-tooltip">三大技術疊加後，每次 Agent 加載成本降至原本的十分之一以下。</div>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">10%</span>
+    <span class="stat-label">Tool Search 節省 Token</span>
+    <div class="stat-tooltip">Lovable 透過 Tool Search 減少 10% Token 消耗，同時提升精準度。</div>
+  </div>
+</div>
+
+<nav class="nav-wrap" id="nav">
+  <button class="active" data-tab="0">I · 總覽</button>
+  <button data-tab="1">II · Prompt Caching</button>
+  <button data-tab="2">III · Context Engineering</button>
+  <button data-tab="3">IV · Advisor Strategy</button>
+  <button data-tab="4">V · 思考題</button>
+  <div class="tab-indicator" id="tab-indicator"></div>
+</nav>
+
+<article>
+<div class="container">
+
+<!-- TAB I: 總覽 -->
+<div class="tab-content active" id="tab-0">
+  <section class="chapter">
+    <span class="roman">I</span>
+    <h2>HeroCorp 的成本危機</h2>
+    <p class="lede">每次啟動 HeroCorp 的 AI 儀表板，費用高達 31 英鎊——整合了 Web、Slack、Gong、Jira 的海量數據，全部塞給 Opus 4.7。這樣的 Agent 在商業上根本無法存活。</p>
+    <p>Punit Sha 一開場就問了一個殘酷的問題：「誰已經把自己的 Agent 推向生產環境，而且對品質、成本、速度都完全滿意？」現場寥寥幾隻手。這就是問題所在。</p>
+    <p>大多數開發者能讓 Agent 「工作」，但無法讓它「有利潤地工作」。本場演講的三大技術正是為此而生：不改變 Agent 的智能輸出，卻讓運行成本降至十分之一。</p>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂平台層</span>
+      <h5>什麼是 Claude Platform（平台層）？</h5>
+      <p>模型（Claude）是大腦，平台是大腦運作的整個環境——快取、速率控制、上下文管理、計費。大腦再聰明，如果環境很貴、很慢，商業應用就無法成立。</p>
+      <ul>
+        <li>模型層：Claude 的智能（Sonnet、Opus）</li>
+        <li>平台層：Prompt Caching、Context Engineering、模型路由</li>
+        <li>比喻：模型是引擎，平台是變速箱 + 省油系統。光有好引擎不夠，還需要讓車跑得省油。</li>
+      </ul>
+      <p>Punit 說：平台的工作就是讓智能引擎跑得又快又便宜，讓商業應用真正成立。</p>
+    </aside>
+
+    <h3>三大技術 × HeroCorp 成本降低歷程</h3>
+    <div class="cost-chart">
+      <h4>每次 Agent 加載成本（英鎊）</h4>
+      <div class="cost-row">
+        <span class="cost-label">基礎版（無優化）</span>
+        <div class="cost-track"><div class="cost-fill c-red" data-w="100"></div></div>
+        <span class="cost-amt">£31</span>
+      </div>
+      <div class="cost-row">
+        <span class="cost-label">+ Prompt Caching<br><small style="font-size:11px;color:var(--ink-faint)">58% 命中率</small></span>
+        <div class="cost-track"><div class="cost-fill c-orange" data-w="48"></div></div>
+        <span class="cost-amt">~£15</span>
+      </div>
+      <div class="cost-row">
+        <span class="cost-label">+ Context Engineering<br><small style="font-size:11px;color:var(--ink-faint)">Tool Search + Compaction</small></span>
+        <div class="cost-track"><div class="cost-fill c-gold" data-w="35"></div></div>
+        <span class="cost-amt">£11</span>
+      </div>
+      <div class="cost-row">
+        <span class="cost-label">+ Advisor Strategy<br><small style="font-size:11px;color:var(--ink-faint)">Sonnet + Opus 顧問</small></span>
+        <div class="cost-track"><div class="cost-fill c-moss" data-w="10"></div></div>
+        <span class="cost-amt">~£3</span>
+      </div>
+    </div>
+
+    <h3>10 個核心洞見</h3>
+    <div class="ledger">
+      <div class="ledger-item">
+        <span class="ledger-num">01</span>
+        <span class="ledger-text"><strong>快取是第一道防線</strong>：Prompt Caching 提供 90% 折扣，同時讓速率限制等效提升 5 倍——高流量生產系統的必備。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">02</span>
+        <span class="ledger-text"><strong>頂尖客戶快取率 90%+</strong>：Replit、Cursor、Perplexity 的 Prompt Cache 命中率都超過 90%，這不是巧合，是刻意設計的結果。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">03</span>
+        <span class="ledger-text"><strong>時間戳記殺死快取</strong>：系統 Prompt 裡不小心加入了時間戳記、隨機 ID？快取瞬間失效。Anthropic Console 新增分析工具可偵測這類問題。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">04</span>
+        <span class="ledger-text"><strong>少即是多</strong>：Context Engineering 的核心是「不要把垃圾塞進脈絡」——只放相關資訊，模型反而表現更好。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">05</span>
+        <span class="ledger-text"><strong>Tool Search 的雙重紅利</strong>：動態載入工具定義不只省 Token，更讓模型不受「幾十個工具的噪音」干擾，精準度同步提升。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">06</span>
+        <span class="ledger-text"><strong>Compaction 創造無限對話</strong>：設定閾值（如 40 萬 Token），模型自動摘要歷史並清空舊脈絡，長期對話不中斷。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">07</span>
+        <span class="ledger-text"><strong>資深帶菜鳥模型</strong>：Advisor Strategy 的核心比喻——大多數工作由 Sonnet 執行，遇到「奇怪案例」才請 Opus 顧問，達到 Pareto 最優。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">08</span>
+        <span class="ledger-text"><strong>西瓜效應警示</strong>：Sonnet 把 Metropolis 合約評估為安全（外綠），但 Opus 顧問發現內部隱藏風險（內紅）——這是 Advisor Strategy 存在的價值。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">09</span>
+        <span class="ledger-text"><strong>程式化過濾讓 API 回傳變精簡</strong>：讓 Claude 寫 Python 腳本，把 Gong 60 分鐘的電話錄音壓縮成情緒摘要——再交給模型，不是整份原文。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">10</span>
+        <span class="ledger-text"><strong>2026 路線圖</strong>：自動快取（Auto Caching）、AWS 上的 Claude Platform 即將推出——平台演進會讓上述最佳實踐更容易採用。</span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- TAB II: Prompt Caching -->
+<div class="tab-content" id="tab-1">
+  <section class="chapter">
+    <span class="roman">II</span>
+    <h2>Prompt Caching：90% 折扣的商業利器</h2>
+    <p class="lede">每次呼叫 Claude API 時，如果系統 Prompt 或工具定義沒有改變，為什麼要重新處理它們？快取正是為了解決這個問題——預處理一次，重複使用，把節省的計算成本還給你。</p>
+
+    <div class="pullquote">
+      <p><strong>"If you remember nothing else from this session, think about prompt caching. You get a 90% discount because we're not re-processing them. We pass those savings on to you."</strong>
+      <span class="zh">「如果你從這場演講只記住一件事，請記住 Prompt Caching。你拿到 90% 的折扣，因為我們沒有重新處理它們。我們把節省的成本轉讓給你。」</span></p>
+      <cite>— Punit Sha</cite>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 Prompt Caching</span>
+      <h5>什麼是 Prompt Caching（提示詞快取）？</h5>
+      <p>想像每次打電話給客服，都要重新報一遍你的帳號、地址、過去的所有問題——太浪費時間了。Prompt Caching 就是讓系統記住這些固定資訊，每次只需傳遞「這次新增的部分」。</p>
+      <ul>
+        <li>沒有快取：每次呼叫都傳送完整 System Prompt → 全部重新處理 → 費用 × N 次</li>
+        <li>有快取：固定部分預處理一次，新增部分才計費 → 省下 90% 輸入 Token 費用</li>
+        <li>額外紅利：快取 Token 不計入速率限制，等效提升 5 倍吞吐量</li>
+      </ul>
+      <p>Punit 說：「這是生產級 Agent 不能不用的基礎設施。」</p>
+    </aside>
+
+    <h3>快取命中率的三大效益</h3>
+    <div class="duo">
+      <div class="duo-card">
+        <span class="tag">效益 1</span>
+        <h4>90% 成本折扣</h4>
+        <p>快取命中的輸入 Token 不需重新處理。Anthropic 把這份節省 pass through 給開發者——對 Token 密集的 Agent 而言，這幾乎等於降低 90% 的 API 費用。</p>
+      </div>
+      <div class="duo-card">
+        <span class="tag">效益 2</span>
+        <h4>5× 速率限制倍增</h4>
+        <p>快取命中的 Token 不計入速率限制。若你的 Agent 有 80% 快取命中率，你的實際可用速率等效提升 5 倍——對高流量生產系統是決定性的。</p>
+      </div>
+    </div>
+    <div class="duo">
+      <div class="duo-card">
+        <span class="tag">效益 3</span>
+        <h4>降低首字延遲（TTFT）</h4>
+        <p>快取命中不需要模型重新讀取長 Prompt，回應速度更快。對即時互動的 Agent 應用，體感速度顯著提升。</p>
+      </div>
+      <div class="duo-card">
+        <span class="tag">頂尖客戶標準</span>
+        <h4>Replit / Cursor / Perplexity：90%+</h4>
+        <p>這三家知名 AI 工具公司的快取命中率都超過 90%。這是工程設計的結果：他們刻意讓系統 Prompt 的動態部分降到最低。</p>
+      </div>
+    </div>
+
+    <div class="story">
+      <span class="story-tag">HeroCorp Demo 實測</span>
+      <h4>一行程式碼，成本砍半</h4>
+      <p>HeroCorp 儀表板在加入 Prompt Caching 之前：快取命中率 0%，每次加載費用 £31。</p>
+      <p>加入快取代碼後，輸出結果完全相同，但快取命中率提升至 58%，費用直接降到約 £15——接近砍半。</p>
+      <p>Punit 強調：輸出完全沒有改變，只是不再重複支付處理同一份系統 Prompt 的費用。這是最直接的「免費午餐」之一。</p>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 快取失效的隱藏陷阱</span>
+      <h5>什麼會讓快取失效（Cache Miss）？</h5>
+      <p>快取像一把鑰匙——如果 Prompt 的任何一個字改變了，就換了一把新鑰匙，快取完全失效，相當於沒有快取。</p>
+      <ul>
+        <li><strong>時間戳記</strong>：System Prompt 裡加入「現在時間：2026-05-20 14:32:01」→ 每秒都是新鑰匙 → 快取永遠 0%</li>
+        <li><strong>隨機 ID</strong>：每次請求加入 UUID → 每次都是新鑰匙</li>
+        <li><strong>動態用戶資料</strong>：把用戶名字塞進系統 Prompt → 每個用戶不同鑰匙</li>
+        <li>解法：把動態資料移到 User Turn，保持 System Prompt 靜態</li>
+      </ul>
+      <p>Anthropic Console 現已提供分析工具，能幫你找出是什麼東西導致快取失效。</p>
+    </aside>
+
+    <h3>快取命中率視覺化</h3>
+    <div class="cache-meter">
+      <h4>HeroCorp 優化前後快取命中率</h4>
+      <p style="font-size:14px;margin-bottom:12px;">優化前（0% 命中率）</p>
+      <div class="cache-bar-wrap">
+        <div class="cache-hit" id="hit1" data-w="0">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:white;font-weight:700;">0%</span>
+        </div>
+      </div>
+      <p style="font-size:14px;margin:16px 0 12px;">優化後（58% 命中率）</p>
+      <div class="cache-bar-wrap">
+        <div class="cache-hit" id="hit2" data-w="58">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:white;font-weight:700;">58%</span>
+        </div>
+      </div>
+      <p style="font-size:14px;margin:16px 0 12px;">頂尖客戶目標（90%+ 命中率）</p>
+      <div class="cache-bar-wrap">
+        <div class="cache-hit" id="hit3" data-w="92">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:white;font-weight:700;">92%</span>
+        </div>
+      </div>
+      <div class="cache-legend">
+        <span><span class="legend-dot" style="background:var(--moss);"></span>快取命中（省錢）</span>
+        <span><span class="legend-dot" style="background:var(--cardinal-soft);opacity:0.7;"></span>快取未命中（正常計費）</span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- TAB III: Context Engineering -->
+<div class="tab-content" id="tab-2">
+  <section class="chapter">
+    <span class="roman">III</span>
+    <h2>Context Engineering：把垃圾擋在脈絡之外</h2>
+    <p class="lede">擁有 100 萬 Token 的上下文窗口不是塞越多越好——把不相關的資訊塞進去，模型效果反而更差、費用更高。Context Engineering 是一門「精準放入」的藝術。</p>
+
+    <div class="pullquote">
+      <p><strong>"Because you're putting less gunk into context, you're putting more relevant stuff there only, it turns out the models actually perform better."</strong>
+      <span class="zh">「因為你放進脈絡的垃圾更少、只放相關資訊，結果發現模型表現反而更好。」</span></p>
+      <cite>— Punit Sha</cite>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 Context Engineering</span>
+      <h5>什麼是 Context Engineering（上下文工程）？</h5>
+      <p>就像給工人下指令：你可以把整個倉庫的資料都搬到他面前（費錢、讓他分心），或只給他當前任務需要的那份文件（省錢、更專注）。Context Engineering 就是讓 AI 只看到「它現在真正需要的東西」。</p>
+      <ul>
+        <li>問題：Agent 整合了 Web、Slack、Gong、Jira 的海量資料，全部塞進去？</li>
+        <li>後果：Token 消耗爆炸、費用飛漲、模型被噪音干擾、效果更差</li>
+        <li>解法三招：Tool Search（按需載入）、Programmatic Filtering（API 回傳先過濾）、Compaction（定期清空舊脈絡）</li>
+      </ul>
+      <p>Context Engineering 的目標：讓脈絡窗口裡只有「高信噪比」的內容。</p>
+    </aside>
+
+    <div class="tech-flow">
+      <div class="tech-step">
+        <div class="tech-icon">🔍</div>
+        <div class="tech-body">
+          <span class="tech-badge">減少 10% Token · Lovable 驗證</span>
+          <h4>Tool Search（工具搜尋）</h4>
+          <p>不預先載入幾十個工具的完整定義，而是給模型一個「搜尋工具定義的工具」。模型有需要時才動態載入對應工具的 Schema——只有當前任務需要的工具才進入脈絡。</p>
+        </div>
+      </div>
+      <div class="tech-step">
+        <div class="tech-icon">🐍</div>
+        <div class="tech-body">
+          <span class="tech-badge">精簡 API 回傳 · Quora 驗證</span>
+          <h4>Programmatic Tool Calling（程式化工具調用）</h4>
+          <p>讓 Claude 寫輕量 Python 腳本，先過濾外部 API 回傳的雜訊再送給模型。Gong 60 分鐘的電話錄音？Python 腳本先壓縮成情緒摘要，再交給 Claude。不是整份文字，是核心精華。</p>
+        </div>
+      </div>
+      <div class="tech-step">
+        <div class="tech-icon">🗜️</div>
+        <div class="tech-body">
+          <span class="tech-badge">無限對話體感 · Hex 驗證</span>
+          <h4>Compaction（上下文壓縮）</h4>
+          <p>設定閾值（如 40 萬 Token）。當對話接近上限時，引導模型自動摘要關鍵事實，清空舊對話歷史，重置為精簡版本。對話連續性保留，脈絡費用大幅降低。</p>
+        </div>
+      </div>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 Tool Search</span>
+      <h5>為什麼要用 Tool Search 動態載入工具定義？</h5>
+      <p>想像一個秘書有 50 個工具手冊。如果你每次都把 50 本手冊全堆在他桌上，他會搞混。如果只在他需要某個工具時才遞給他那本手冊，他更專注、更準確。</p>
+      <ul>
+        <li>舊方法：把 50 個工具的 JSON Schema 全部塞進 System Prompt（大量 Token）</li>
+        <li>新方法：給一個「搜尋工具定義」的工具 → 模型說「我需要 Gong 工具」→ 動態載入 Gong 的 Schema</li>
+        <li>效果：Lovable 減少 10% Token 消耗，精準度也同步提升</li>
+      </ul>
+      <p>更少 Token + 更高精準度 = 雙重紅利。這就是 Context Engineering 的魔法。</p>
+    </aside>
+
+    <div class="story">
+      <span class="story-tag">HeroCorp 上下文工程 Demo</span>
+      <h4>Gong 錄音壓縮：從一小時的文字到情緒摘要</h4>
+      <p>HeroCorp 儀表板整合了 Gong 客戶通話資料，每次加載時要把 30-60 分鐘的逐字稿塞進脈絡——這本身就是一個巨大的 Token 消耗。</p>
+      <blockquote>「透過 Python 腳本過濾，將原本龐大的文字區塊壓縮成精簡的情緒摘要，使單次加載成本進一步降至 £11。」</blockquote>
+      <p>做法：讓 Claude 生成一個輕量 Python 腳本，在 Gong API 的文字回傳到模型之前，先把它轉換為情緒指標（正面/負面/中性 + 關鍵時刻）。Claude 接收到的是 100 字的精華，不是 6000 字的原文。</p>
+      <p>同時，加入 Compaction 機制：當儀表板的上下文窗口增長到 40 萬 Token 的閾值，自動觸發摘要並清空舊歷史。操作者可以在側邊欄看到上下文增長速度明顯放緩，以及在閾值時的自動回落。</p>
+    </div>
+
+    <table class="compare-table">
+      <thead>
+        <tr><th>技術</th><th>解決的問題</th><th>實際效果</th><th>使用者案例</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Tool Search</td>
+          <td>工具定義塞滿脈絡</td>
+          <td class="good">10% Token 減少 + 精準度↑</td>
+          <td>Lovable</td>
+        </tr>
+        <tr>
+          <td>Programmatic Filtering</td>
+          <td>API 回傳太雜亂</td>
+          <td class="good">回傳大幅壓縮，只留精華</td>
+          <td>Quora</td>
+        </tr>
+        <tr>
+          <td>Compaction</td>
+          <td>長對話撞牆中斷</td>
+          <td class="good">無限對話體感，代碼簡化</td>
+          <td>Hex</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 Compaction</span>
+      <h5>什麼是 Compaction（上下文壓縮）？</h5>
+      <p>想像一本筆記本快滿了，你不是扔掉它，而是把重要內容用一頁摘要整理好，再繼續記新東西。Compaction 就是讓 AI 自動做這件事。</p>
+      <ul>
+        <li>沒有 Compaction：對話太長 → 超出上下文限制 → 對話強制中斷 → 用戶體驗崩潰</li>
+        <li>有 Compaction：接近閾值時 → 自動摘要歷史 → 清空舊脈絡 → 對話無縫繼續</li>
+        <li>Hex 的體驗：加入 Compaction 後，他們的代碼也大幅簡化了（不需要手動管理上下文）</li>
+      </ul>
+      <p>Compaction 讓有狀態的長期 Agent 成為可能，而不只是一次性的短對話。</p>
+    </aside>
+  </section>
+</div>
+
+<!-- TAB IV: Advisor Strategy -->
+<div class="tab-content" id="tab-3">
+  <section class="chapter">
+    <span class="roman">IV</span>
+    <h2>Advisor Strategy：資深帶菜鳥的模型路由</h2>
+    <p class="lede">成本降到 £11 之後，對於低利潤業務仍然偏高。根本原因是整個 Agent 都在使用 Opus 4.7。解決方案是讓 Sonnet 做 80% 的日常工作，Opus 只在「奇怪案例」出現時充當顧問。</p>
+
+    <div class="pullquote">
+      <p><strong>"There are senior engineers paired with junior engineers that make that junior engineer so much more powerful. Pairing the kind of Sonnet/Haiku gets you kind of the prices of those models approaching even sometimes Opus intelligence."</strong>
+      <span class="zh">「就像資深工程師搭配菜鳥工程師，讓菜鳥的能力大幅提升。Sonnet/Haiku 搭配 Opus 顧問，能以接近 Sonnet 的費用，逼近 Opus 的智能。」</span></p>
+      <cite>— Punit Sha</cite>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 Advisor Strategy</span>
+      <h5>什麼是 Advisor Strategy（顧問策略）？</h5>
+      <p>就像一個公司請了一位頂級顧問（很貴），但不是讓他做所有的日常工作——他只在出現複雜、高風險的決策時才被請出來。日常工作由普通員工（便宜）負責。</p>
+      <ul>
+        <li>全 Opus 4.7：頂尖智能，但費用極高，利潤薄到無法商業化</li>
+        <li>全 Sonnet 4.6：費用低，但在關鍵決策上可能漏掉隱藏風險</li>
+        <li>Advisor Strategy：Sonnet 執行日常 + Opus 審查「奇怪案例」→ Pareto 最優</li>
+      </ul>
+      <p>Bolt 的測試顯示：這個組合能以遠低於 Opus 的費用，在複雜案例上達到接近 Opus 的智能效果。</p>
+    </aside>
+
+    <div class="advisor-flow">
+      <h4>Advisor Strategy 架構：資深 + 菜鳥雙模型</h4>
+      <div class="advisor-grid">
+        <div class="advisor-box primary">
+          <span class="advisor-label">主要執行者（80%+ 任務）</span>
+          <span class="advisor-name">Sonnet 4.6</span>
+          <div class="advisor-role">高性價比 · 日常工作<br>快速、便宜</div>
+          <div class="oddball-box">遇到「奇怪案例」<br>→ 觸發顧問</div>
+        </div>
+        <div class="advisor-arrow">⟶<br><br>升級</div>
+        <div class="advisor-box secondary">
+          <span class="advisor-label">顧問（高風險 / 奇怪案例）</span>
+          <span class="advisor-name">Opus 4.7</span>
+          <div class="advisor-role">深度推理 · 關鍵決策<br>貴但精準</div>
+          <div class="oddball-box" style="background:rgba(140,21,21,0.07);border-color:var(--cardinal-soft);">推翻 Sonnet 決策<br>→ 發出警示</div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 Oddball Cases</span>
+      <h5>什麼是 Oddball Cases（奇怪案例）？</h5>
+      <p>大多數任務都是「正常形狀」——模式清晰，Sonnet 可以輕鬆處理。但偶爾會有「奇怪形狀」——需要深度推理、涉及隱藏風險、或有異常複雜的規則——這時 Sonnet 可能漏掉關鍵細節。</p>
+      <ul>
+        <li>正常案例（Sonnet 適合）：常規合約審查、日常數據摘要、標準問答</li>
+        <li>奇怪案例（需要 Opus）：合約中有隱含衝突的條款、多方利益相關的決策、涉及高風險的邊緣情況</li>
+        <li>關鍵設計問題：如何讓 Sonnet 知道「這個案例超出我的能力範圍」？需要設計觸發條件。</li>
+      </ul>
+      <p>Punit 的建議：從 Opus 開始，觀察什麼情況下 Sonnet 的結果不夠好，把那些情況設計為 Opus 觸發條件。</p>
+    </aside>
+
+    <div class="story">
+      <span class="story-tag">Metropolis 合約續約驚魂</span>
+      <h4>西瓜效應：外綠內紅，差點釀成大錯</h4>
+      <p>HeroCorp 正在審查大客戶 Metropolis 的合約續約。使用純 Sonnet 架構時：</p>
+      <blockquote>「Sonnet 表面評估為安全（綠燈）——合約條款看起來沒問題，一切正常。」</blockquote>
+      <p>切換到 Advisor Strategy 後，Sonnet 把脈絡交給 Opus 顧問進行深度審查。Opus 敏銳地發現了一個隱藏風險：合約指定英雄 Cryothane 必須出席某個關鍵場合，但 Cryothane 當天根本沒空。</p>
+      <p>這就是「西瓜效應」——外表綠（合約看起來安全），內部紅（有一個隱藏的執行風險）。Opus 成功推翻了 Sonnet 的綠燈評估，發出警示，讓 HeroCorp 即時介入處理，挽救了這張關鍵續約。</p>
+      <p>如果沒有 Advisor Strategy，這個風險會被忽略，合約可能因為 Cryothane 缺席而引發客戶不滿。</p>
+    </div>
+
+    <h3>三大策略疊加後的總體效益</h3>
+    <div class="strategy-stack">
+      <div class="stack-item">
+        <span class="stack-num">I</span>
+        <div class="stack-body">
+          <h4>Prompt Caching → £31 降至 ~£15</h4>
+          <p>加入快取代碼，命中率 58%，成本近乎砍半。輸出完全不變。</p>
+        </div>
+      </div>
+      <div class="stack-item">
+        <span class="stack-num">II</span>
+        <div class="stack-body">
+          <h4>Context Engineering → ~£15 降至 £11</h4>
+          <p>Tool Search + Programmatic Filtering + Compaction，進一步削減 Token 消耗。</p>
+        </div>
+      </div>
+      <div class="stack-item">
+        <span class="stack-num">III</span>
+        <div class="stack-body">
+          <h4>Advisor Strategy → £11 降至 ~£3</h4>
+          <p>Sonnet 主導 + Opus 顧問，成本再次大幅下降，同時保留 Opus 在關鍵案例的決策智能。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- TAB V: 思考題 -->
+<div class="tab-content" id="tab-4">
+  <section class="chapter">
+    <span class="roman">V</span>
+    <h2>思考題 · 六個值得深想的問題</h2>
+    <p class="lede">Punit 的演講展示了三個降低成本的技術。但技術背後有更深層的設計哲學值得探討——從商業模型的建構，到 AI 系統的信任邊界。</p>
+
+    <div class="discuss" data-q="Q1">
+      <p>Q1 · Punit 說 Replit、Cursor、Perplexity 的快取命中率都超過 90%。這表示頂尖 AI 產品團隊把「系統 Prompt 的靜態化」當作核心工程目標。你現在最重要的 Agent 的系統 Prompt 中，有哪些部分是動態的（會因為請求不同而改變）？把這些部分移出系統 Prompt 需要什麼代價？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>量化參考：</strong>快取命中率每提升 10%，意味著大約 10% 的 API 費用降低。從 0% 提升到 90% 理論上節省了 81% 的輸入 Token 費用（90% 折扣 × 90% 的 Token）。</li>
+          <li><strong>講者隱含論點：</strong>Punit 說頂尖客戶這樣做不是偶然——他們意識到 System Prompt 的「靜態性」是商業可持續性的基礎設施。</li>
+          <li><strong>職涯啟發：</strong>能夠系統性審計 Prompt 結構，識別哪些部分可靜態化的工程師，在 AI 產品成本優化方面有明顯優勢。這是 2026 年最被低估的工程能力之一。</li>
+          <li><strong>反向思考：</strong>極高的快取命中率是否意味著系統 Prompt 「太固定」，缺乏對用戶個性化的彈性？靜態化和個性化之間如何取得平衡？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss" data-q="Q2">
+      <p>Q2 · Advisor Strategy 的西瓜效應案例顯示：Sonnet 把高風險合約評估為安全，Opus 才找到問題。但在真實系統中，你怎麼知道什麼情況下需要升級到 Opus？「Oddball Cases」的觸發條件如何設計？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>歷史對照：</strong>人類組織中「什麼需要升級給主管」的判斷一直是管理學研究課題。AI 多模型路由面對同樣的問題——規則化的邊界 vs. 學習到的邊界哪個更可靠？</li>
+          <li><strong>講者隱含論點：</strong>Punit 的建議是「從 Opus 開始，觀察 Sonnet 失敗的模式，把那些模式設計為升級觸發條件」——這是資料驅動的方法，而非規則驅動。</li>
+          <li><strong>職涯啟發：</strong>設計高品質的「升級觸發條件」需要同時理解業務邏輯和模型能力邊界——這種混合能力在 2026 年非常稀缺。</li>
+          <li><strong>反向思考：</strong>如果 Sonnet 無法識別「自己不知道的事」（Known Unknowns vs Unknown Unknowns），基於 Sonnet 判斷的升級觸發機制是否有系統性盲點？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss" data-q="Q3">
+      <p>Q3 · Punit 展示 Context Engineering 讓「垃圾更少 → 模型表現更好」。但在真實業務中，「什麼是垃圾、什麼是相關信息」往往不清楚——只有當模型失敗時才知道少了什麼。你如何系統性地決定哪些資訊應該進入上下文？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>量化參考：</strong>Lovable 的 10% Token 減少是透過 Tool Search 達成的。他們如何知道哪些工具定義是「不必要的垃圾」？可能是透過工具調用頻率分析——很少被用到的工具定義是候選刪除對象。</li>
+          <li><strong>講者隱含論點：</strong>Punit 的 Programmatic Tool Calling 案例暗示：「讓 Claude 自己決定要壓縮哪些 API 回傳」是一個可行策略——Meta 使用 AI 決定什麼值得告訴 AI。</li>
+          <li><strong>職涯啟發：</strong>Context Engineering 是 2026 年一個快速成熟的領域。能夠建立「信息相關性評估框架」的工程師，將成為 Agent 架構師角色的核心競爭力。</li>
+          <li><strong>反向思考：</strong>如果你的「Context Engineering」過於激進，過濾掉了某些不常用但關鍵的信息，可能在邊緣案例中導致嚴重的模型失誤。過度優化和信息完整性之間如何平衡？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss" data-q="Q4">
+      <p>Q4 · Punit 展示了三大技術讓成本從 £31 降到 £3——降低了 90%。在你的業務或應用中，AI 成本的瓶頸在哪裡？這三個技術中，哪一個對你的場景最有可能帶來最大的投資回報？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>量化參考：</strong>Prompt Caching 效果最容易量化（快取命中率直接對應費用減少）；Context Engineering 效果最複雜（需要實驗）；Advisor Strategy 效果取決於「奇怪案例」的頻率。</li>
+          <li><strong>講者隱含論點：</strong>Punit 建議按順序嘗試：先快取（零智能損失，立竿見影），再脈絡工程（需要一些工程投資），最後考慮模型路由（需要評估和監控）。</li>
+          <li><strong>職涯啟發：</strong>能夠快速估算「每個優化技術的 ROI」並排列優先序的工程師，在和 PM 溝通資源分配時有巨大優勢。不是所有優化都值得投入相同的工程時間。</li>
+          <li><strong>反向思考：</strong>有些時候，「成本不是問題」——如果你的應用創造的價值遠超 AI 費用，過度優化成本反而是機會成本的浪費。你確定成本優化是當前最重要的事情嗎？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss" data-q="Q5">
+      <p>Q5 · 演講開場 Punit 問：「誰對自己 Agent 的品質/成本/速度三者都完全滿意？」幾乎沒人舉手。為什麼這三個目標在現實中很難同時達到？它們之間的張力本質是什麼？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>歷史對照：</strong>軟體工程中的 CAP 定理（Consistency, Availability, Partition tolerance）類似地指出三個目標最多只能同時滿足兩個。AI Agent 的品質/成本/速度是否也有類似的「三選二」的本質性張力？</li>
+          <li><strong>講者隱含論點：</strong>Punit 展示的三大技術打破了「三選二」的假設——在某些條件下（特別是快取），你可以同時改善三個指標。這意味著「三選二」不是絕對的，而是取決於架構設計。</li>
+          <li><strong>職涯啟發：</strong>理解品質/成本/速度三者之間的動態平衡，並能根據業務場景設計合適的取捨策略，是 AI 產品工程師區別於純模型用戶的核心能力。</li>
+          <li><strong>反向思考：</strong>也許「完全滿意」本身就是錯誤的目標——優化是持續過程，隨著模型演進、業務增長，「平衡點」會不斷移動。能夠持續迭代這個平衡的組織能力比一次性「達到滿意」更重要。</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss" data-q="Q6">
+      <p>Q6 · Punit 預告 2026 年即將推出「Auto Caching」自動快取功能。如果平台層的優化都能自動化（不需要開發者手動設計快取策略），Context Engineering 還有多少人工設計的空間？平台智能化會讓這些技巧變成「過時知識」嗎？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>歷史對照：</strong>資料庫查詢優化（Index 設計、查詢計畫）在 20 年前需要大量人工優化，現在資料庫引擎能自動完成大部分。但高階的 Schema 設計和查詢架構仍然需要人類判斷。類比：自動快取解決「策略」，但「什麼進脈絡」仍需人工設計。</li>
+          <li><strong>講者隱含論點：</strong>Punit 說「自動快取」即將來臨——暗示 Anthropic 認為快取策略可以被自動化。但他同時展示了 Context Engineering 的複雜性（Tool Search、Compaction 的設計）——這些更難自動化。</li>
+          <li><strong>職涯啟發：</strong>自動化的邊界是「已知的、可規則化的最佳實踐」。深度的業務邏輯判斷（什麼是垃圾、什麼是關鍵信息）不能自動化。投資後者的能力比前者更有未來價值。</li>
+          <li><strong>反向思考：</strong>平台功能的自動化讓基礎優化「民主化」（人人都能達到合理水準），但同時拉高了競爭起跑線。當自動快取普及後，差異化的競爭優勢來自哪裡？</li>
+        </ul>
+      </details>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 名詞速查</span>
+      <h5>本場演講關鍵術語</h5>
+      <ul>
+        <li><strong>Prompt Caching</strong>：預處理固定 Prompt 部分，90% 折扣 + 速率提升</li>
+        <li><strong>Cache Hit Rate</strong>：快取命中率，越高代表越省錢</li>
+        <li><strong>TTFT</strong>：Time to First Token，首字延遲，越低代表越快</li>
+        <li><strong>Tool Search</strong>：按需動態載入工具定義，而非全部預載</li>
+        <li><strong>Programmatic Tool Calling</strong>：讓 Claude 寫腳本預過濾 API 回傳</li>
+        <li><strong>Compaction</strong>：接近脈絡上限時自動摘要並清空舊歷史</li>
+        <li><strong>Advisor Strategy</strong>：低成本模型執行 + 高級模型在複雜案例顧問</li>
+        <li><strong>Oddball Cases</strong>：需要高級模型深度推理的邊緣複雜案例</li>
+        <li><strong>Pareto Optimal</strong>：在成本和智能之間找到最優平衡點，不可能同時再改善兩者</li>
+      </ul>
+    </aside>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 明天可以做的事</span>
+      <h5>三個「今晚就能開始」的行動</h5>
+      <ul>
+        <li><strong>1. 前往 console.anthropic.com</strong> 查看你的 Prompt Cache 命中率。如果低於 50%，找出是什麼在動態改變系統 Prompt。</li>
+        <li><strong>2. 計算你的工具列表大小</strong>：你的 Agent 有幾個工具？如果超過 10 個，考慮是否可以改用 Tool Search 動態載入。</li>
+        <li><strong>3. 估算成本轉換效益</strong>：如果你的應用改用 Sonnet 執行 80% 任務、只在關鍵決策用 Opus，費用大概能降低多少？</li>
+      </ul>
+      <p>Punit 的核心訊息：「讓 AI 成本可持續，才能讓商業價值真正成立。平台技術是實現這個目標的工具，而不只是優化細節。」</p>
+    </aside>
+  </section>
+</div>
+
+</div><!-- container -->
+</article>
+
+<footer class="colophon">
+  <div class="container">
+    <div class="colophon-grid">
+      <div class="col-section">
+        <h6>Conference</h6>
+        <p><strong>Code with Claude London 2026</strong><br>
+        Anthropic Developer Conference<br>
+        May 19–20, 2026 · London<br>
+        Anthropic</p>
+      </div>
+      <div class="col-section">
+        <h6>This Talk</h6>
+        <p><strong>Talk 23 of 24 · Day 2</strong><br>
+        Getting More Out of the Claude Platform<br>
+        Punit Sha · Anthropic Platform PM<br>
+        Ben · HeroCorp CTO (Demo)</p>
+      </div>
+      <div class="col-section">
+        <h6>This Issue</h6>
+        <p>12 primers · 3 stories<br>
+        6 guided questions · 3 techniques<br>
+        3 interactive visuals<br>
+        Caching · Context · Advisor</p>
+      </div>
+    </div>
+    <hr class="colophon-rule">
+    <p class="colophon-bottom">© The Claude Dispatch · Set in Fraunces, Newsreader &amp; JetBrains Mono · 12 primers · 3 stories · 6 guided questions</p>
+  </div>
+</footer>
+
+<button id="back-top" title="回到頂部">↑</button>
+
+<script>
+const pb = document.getElementById('progress-bar');
+document.addEventListener('scroll', () => {
+  const h = document.documentElement;
+  pb.style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%';
+});
+
+const cursor = document.getElementById('cursor');
+if ('ontouchstart' in window) {
+  cursor.style.display = 'none';
+} else {
+  document.addEventListener('mousemove', e => {
+    cursor.style.left = e.clientX + 'px';
+    cursor.style.top = e.clientY + 'px';
+  });
+  document.querySelectorAll('a,button,.duo-card,.ledger-item,.stack-item,.tech-step,.advisor-box').forEach(el => {
+    el.addEventListener('mouseenter', () => cursor.classList.add('big'));
+    el.addEventListener('mouseleave', () => cursor.classList.remove('big'));
+  });
+}
+
+const tabs = document.querySelectorAll('.nav-wrap button');
+const contents = document.querySelectorAll('.tab-content');
+const indicator = document.getElementById('tab-indicator');
+const nav = document.getElementById('nav');
+
+function setIndicator(tab) {
+  const rect = tab.getBoundingClientRect();
+  const navRect = nav.getBoundingClientRect();
+  indicator.style.left = (rect.left - navRect.left + nav.scrollLeft) + 'px';
+  indicator.style.width = rect.width + 'px';
+}
+
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    contents.forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    setIndicator(tab);
+    setTimeout(() => revealVisible(), 100);
+    setTimeout(() => animateBars(), 200);
+  });
+});
+
+window.addEventListener('load', () => {
+  const active = document.querySelector('.nav-wrap button.active');
+  if (active) setIndicator(active);
+});
+window.addEventListener('resize', () => {
+  const active = document.querySelector('.nav-wrap button.active');
+  if (active) setIndicator(active);
+});
+
+const revealObs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('revealed'); });
+}, { threshold: 0.08 });
+document.querySelectorAll('.chapter').forEach(el => revealObs.observe(el));
+
+function revealVisible() {
+  document.querySelectorAll('.chapter:not(.revealed)').forEach(el => {
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight) el.classList.add('revealed');
+  });
+}
+
+function animateBars() {
+  document.querySelectorAll('.cost-fill[data-w]').forEach(el => {
+    const parent = el.closest('.tab-content');
+    if (parent && parent.classList.contains('active')) {
+      el.style.width = el.dataset.w + '%';
+    }
+  });
+  ['hit1','hit2','hit3'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      const parent = el.closest('.tab-content');
+      if (parent && parent.classList.contains('active')) {
+        el.style.width = el.dataset.w + '%';
+      }
+    }
+  });
+}
+
+const barObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.querySelectorAll('.cost-fill[data-w]').forEach(el => { el.style.width = el.dataset.w + '%'; });
+      ['hit1','hit2','hit3'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.width = el.dataset.w + '%';
+      });
+    }
+  });
+}, { threshold: 0.3 });
+document.querySelectorAll('.cost-chart, .cache-meter').forEach(el => barObs.observe(el));
+
+document.getElementById('back-top').addEventListener('click', () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+setTimeout(() => { revealVisible(); animateBars(); }, 300);
+</script>
+<style>#home-btn{position:fixed;bottom:32px;left:32px;width:44px;height:44px;border-radius:50%;background:var(--cardinal,#8c1515);color:var(--paper,#efe8d6);display:flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:3px 3px 0 var(--ink,#1a1410);z-index:901;font-size:20px;transition:transform .2s;}#home-btn:hover{transform:translateY(-4px);}#home-btn::after{content:'';position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;color:var(--ink-faint,#7a6651);opacity:0;transition:opacity .2s;}#home-btn:hover::after{content:'HOME';opacity:1;}</style>
+<a id='home-btn' href='./index.html' title='Back to Index'>&#8962;</a></body>
+</html>

@@ -1,0 +1,1488 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Claude Dispatch — №09 · The Prompting Playbook</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper:       #efe8d6;
+      --paper-deep:  #e4d9be;
+      --paper-edge:  #d6c89f;
+      --ink:         #1a1410;
+      --ink-soft:    #4a3a2b;
+      --ink-faint:   #7a6651;
+      --cardinal:    #8c1515;
+      --cardinal-dk: #5e0e0e;
+      --cardinal-soft:#b34646;
+      --gold:        #b48729;
+      --gold-soft:   #d8b261;
+      --gold-bg:     #f7eccd;
+      --moss:        #586a3f;
+      --moss-bg:     #e6e6c9;
+      --rule:        rgba(26,20,16,0.14);
+      --rule-soft:   rgba(26,20,16,0.07);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'Newsreader', 'Noto Serif TC', Georgia, serif;
+      font-size: 18px;
+      line-height: 1.75;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 999;
+      background-image:
+        radial-gradient(rgba(26,20,16,0.04) 1px, transparent 1px),
+        radial-gradient(rgba(26,20,16,0.025) 1px, transparent 1px);
+      background-size: 3px 3px, 7px 7px;
+      background-position: 0 0, 1px 1px;
+      opacity: .55; mix-blend-mode: multiply;
+    }
+
+    /* Progress Bar */
+    #progress-bar {
+      position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+      background: linear-gradient(90deg, var(--cardinal), var(--gold));
+      z-index: 1000; transition: width 0.1s linear;
+    }
+
+    /* Cursor */
+    #cursor {
+      position: fixed; width: 20px; height: 20px; border-radius: 50%;
+      border: 1.5px solid var(--cardinal); pointer-events: none; z-index: 9999;
+      transform: translate(-50%, -50%); transition: transform 0.15s ease, width 0.2s ease, height 0.2s ease, opacity 0.2s;
+      mix-blend-mode: multiply; opacity: 0.85;
+    }
+    body.cursor-hover #cursor { width: 76px; height: 76px; }
+    @media (hover: none) { #cursor { display: none; } }
+
+    /* Masthead */
+    .masthead {
+      border-bottom: 2px solid var(--ink);
+      padding: 10px 32px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .masthead-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--ink-faint);
+    }
+    .masthead-issue {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; color: var(--cardinal);
+      letter-spacing: 0.06em;
+    }
+
+    .container { max-width: 1080px; margin: 0 auto; padding: 0 32px; }
+    @media (max-width: 900px) { .container { padding: 0 22px; } }
+
+    /* Hero */
+    .hero { padding: 56px 0 48px; border-bottom: 1px solid var(--rule); }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      gap: 0 36px; align-items: start;
+    }
+
+    .issue-stamp {
+      font-family: 'Fraunces', serif;
+      font-size: 72px; font-weight: 800;
+      color: var(--cardinal);
+      line-height: 1;
+      transform: rotate(-4deg);
+      white-space: nowrap;
+      text-shadow: 3px 3px 0 var(--paper-edge), 4px 4px 0 var(--cardinal-dk);
+      display: flex; flex-direction: column; align-items: center;
+      margin-top: 8px;
+    }
+    .issue-stamp small {
+      font-size: 13px; font-weight: 600; letter-spacing: 0.14em;
+      color: var(--cardinal-dk); margin-top: 4px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    h1 {
+      font-family: 'Fraunces', serif;
+      font-size: clamp(34px, 4.6vw, 56px);
+      font-weight: 800; line-height: 1.12;
+      color: var(--ink);
+      font-variant-numeric: oldstyle-nums;
+    }
+    h1 em { color: var(--cardinal); font-style: italic; }
+
+    .deck {
+      font-family: 'Newsreader', serif;
+      font-size: 20px; color: var(--ink-soft);
+      margin-top: 14px; font-style: italic;
+      max-width: 720px; line-height: 1.6;
+    }
+    .byline {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; font-weight: 500;
+      letter-spacing: 0.1em; color: var(--ink-faint);
+      text-transform: uppercase; margin-top: 18px;
+      border-top: 1px solid var(--rule); padding-top: 12px;
+    }
+    .byline span { color: var(--cardinal); }
+    .toc-hint {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; color: var(--ink-faint);
+      margin-top: 10px; letter-spacing: 0.08em;
+    }
+
+    /* Stat Strip */
+    .stat-strip {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      border-bottom: 2px solid var(--ink);
+    }
+    @media (max-width: 700px) { .stat-strip { grid-template-columns: repeat(2, 1fr); } }
+
+    .stat-item {
+      padding: 24px 28px; border-right: 1px solid var(--rule);
+      position: relative; cursor: default;
+      transition: background 0.2s;
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-item:hover { background: var(--paper-deep); }
+
+    .stat-num {
+      font-family: 'Fraunces', serif; font-size: 42px; font-weight: 800;
+      color: var(--cardinal); line-height: 1;
+      font-variant-numeric: oldstyle-nums;
+    }
+    .stat-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--ink-faint);
+      margin-top: 6px;
+    }
+
+    .stat-tooltip {
+      position: absolute; bottom: calc(100% + 8px); left: 50%;
+      transform: translateX(-50%) translateY(6px);
+      background: var(--ink); color: var(--paper);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; padding: 8px 12px; width: 200px;
+      border-radius: 2px; opacity: 0; pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      text-align: center; line-height: 1.5; z-index: 100;
+    }
+    .stat-tooltip::after {
+      content: ''; position: absolute; top: 100%; left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent; border-top-color: var(--ink);
+    }
+    .stat-item:hover .stat-tooltip { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Nav */
+    .nav-wrap {
+      position: sticky; top: 0; z-index: 200;
+      background: var(--paper); border-bottom: 2px solid var(--ink);
+      overflow-x: auto;
+    }
+    .nav-tabs {
+      display: flex; position: relative;
+      max-width: 1080px; margin: 0 auto; padding: 0 32px;
+    }
+    .nav-tab {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; padding: 16px 22px;
+      color: var(--ink-faint); cursor: pointer; white-space: nowrap;
+      border: none; background: none; transition: color 0.2s;
+      position: relative;
+    }
+    .nav-tab:hover { color: var(--ink); }
+    .nav-tab.active { color: var(--cardinal); }
+    .tab-indicator {
+      position: absolute; bottom: 0; height: 3px;
+      background: var(--cardinal);
+      transition: left 0.3s cubic-bezier(.4,0,.2,1), width 0.3s cubic-bezier(.4,0,.2,1);
+    }
+
+    /* Article & Tabs */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    article { padding: 56px 0 80px; }
+
+    /* Chapter */
+    .chapter {
+      position: relative; margin-bottom: 72px;
+      overflow: hidden;
+    }
+    .roman {
+      position: absolute; right: -12px; top: -24px;
+      font-family: 'Fraunces', serif; font-size: 220px; font-weight: 800;
+      color: var(--ink); opacity: 0.045; line-height: 1;
+      pointer-events: none; user-select: none; font-style: italic;
+    }
+
+    h2 {
+      font-family: 'Fraunces', serif; font-size: 44px; font-weight: 800;
+      color: var(--ink); margin-bottom: 20px;
+      padding-left: 20px;
+      border-left: 32px solid var(--cardinal);
+      line-height: 1.2;
+    }
+    h3 {
+      font-family: 'Fraunces', serif; font-size: 22px; font-weight: 700;
+      color: var(--ink); margin: 32px 0 14px;
+    }
+    h4 {
+      font-family: 'Fraunces', serif; font-size: 18px; font-weight: 700;
+      color: var(--ink); margin: 24px 0 10px;
+    }
+
+    p {
+      color: var(--ink-soft); margin-bottom: 16px;
+      max-width: 760px;
+    }
+    .lede {
+      font-size: 20px; color: var(--ink); font-weight: 500;
+      margin-bottom: 28px; max-width: 820px; line-height: 1.65;
+    }
+
+    /* Primer */
+    aside.primer {
+      background: var(--gold-bg); border: 1px solid var(--gold-soft);
+      border-left: 4px solid var(--gold);
+      padding: 22px 26px; margin: 28px 0;
+      max-width: 820px; position: relative;
+      transition: box-shadow 0.2s;
+    }
+    aside.primer:hover { box-shadow: 4px 4px 0 var(--ink); }
+    .primer-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--gold);
+      display: block; margin-bottom: 8px;
+    }
+    aside.primer h5 {
+      font-family: 'Fraunces', serif; font-size: 18px; font-weight: 700;
+      font-style: italic; color: var(--ink); margin-bottom: 10px;
+    }
+    aside.primer p { font-size: 15px; max-width: 100%; }
+    aside.primer ul { margin: 10px 0 10px 20px; }
+    aside.primer li { font-size: 15px; color: var(--ink-soft); margin-bottom: 5px; }
+
+    /* Story */
+    .story {
+      background: var(--paper-deep); border: 1px solid var(--rule);
+      border-top: 4px solid var(--cardinal);
+      padding: 26px 30px; margin: 32px 0;
+      max-width: 820px;
+    }
+    .story-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--cardinal);
+      display: block; margin-bottom: 10px;
+    }
+    .story h4 { font-style: italic; color: var(--cardinal-dk); }
+    .story p { font-size: 16px; max-width: 100%; }
+    .story blockquote {
+      border-left: 3px solid var(--cardinal-soft);
+      padding: 10px 18px; margin: 14px 0;
+      font-style: italic; color: var(--ink);
+      font-size: 15px; background: rgba(140,21,21,0.04);
+    }
+
+    /* Pullquote */
+    .pullquote {
+      border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink);
+      padding: 26px 28px; margin: 36px 0;
+      max-width: 820px; position: relative;
+    }
+    .pullquote::before {
+      content: '\201C';
+      font-family: 'Fraunces', serif; font-size: 100px; font-weight: 800;
+      color: var(--cardinal); opacity: 0.18; position: absolute;
+      top: -18px; left: 12px; line-height: 1; pointer-events: none;
+      transition: transform 0.35s ease, opacity 0.35s ease;
+    }
+    .pullquote:hover::before { transform: rotate(-6deg); opacity: 0.3; }
+    .pullquote:hover { background: var(--paper-deep); }
+    .pullquote p { font-family: 'Fraunces', serif; font-size: 21px; font-weight: 600; color: var(--ink); max-width: 100%; }
+    .pullquote cite { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--cardinal); letter-spacing: 0.08em; }
+    .zh { display: block; font-size: 14px; color: var(--ink-faint); border-top: 1px dashed var(--rule); margin-top: 10px; padding-top: 8px; font-style: normal; }
+
+    /* Duo / Duel cards */
+    .duo {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+      margin: 28px 0; max-width: 820px;
+    }
+    @media (max-width: 700px) { .duo { grid-template-columns: 1fr; } }
+    .duo-card {
+      background: var(--paper-deep); border: 1px solid var(--rule);
+      padding: 20px 24px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: default;
+    }
+    .duo-card:hover { transform: translateY(-3px); box-shadow: 4px 4px 0 var(--ink); }
+    .duo-card h4 { font-size: 16px; margin-bottom: 8px; }
+    .duo-card p { font-size: 14px; max-width: 100%; }
+    .duo-card.good { border-top: 3px solid var(--moss); }
+    .duo-card.bad  { border-top: 3px solid var(--cardinal); }
+    .duo-tag {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+      margin-bottom: 8px; display: block;
+    }
+    .duo-card.good .duo-tag { color: var(--moss); }
+    .duo-card.bad  .duo-tag { color: var(--cardinal); }
+
+    /* Ledger rows */
+    .ledger { margin: 24px 0; max-width: 820px; }
+    .ledger-row {
+      display: flex; align-items: flex-start; gap: 20px;
+      padding: 14px 18px; border-bottom: 1px solid var(--rule-soft);
+      position: relative; transition: padding-left 0.2s;
+    }
+    .ledger-row::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+      width: 0; background: var(--cardinal);
+      transition: width 0.25s ease;
+    }
+    .ledger-row:hover { padding-left: 28px; }
+    .ledger-row:hover::before { width: 4px; }
+    .ledger-num {
+      font-family: 'JetBrains Mono', monospace; font-size: 13px;
+      font-weight: 700; color: var(--ink-faint); min-width: 28px;
+      transition: color 0.2s;
+    }
+    .ledger-row:hover .ledger-num { color: var(--cardinal); }
+    .ledger-body { font-size: 15px; color: var(--ink-soft); }
+    .ledger-body strong { color: var(--ink); }
+
+    /* Stack */
+    .stack { margin: 24px 0; max-width: 820px; }
+    .stack-item {
+      display: flex; align-items: flex-start; gap: 16px;
+      padding: 16px 18px; border-bottom: 1px solid var(--rule-soft);
+      transition: padding-left 0.2s;
+      position: relative;
+    }
+    .stack-item::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+      width: 0; background: var(--cardinal); transition: width 0.25s;
+    }
+    .stack-item:hover { padding-left: 26px; }
+    .stack-item:hover::before { width: 4px; }
+    .stack-roman {
+      font-family: 'Fraunces', serif; font-size: 22px; font-weight: 800;
+      color: var(--ink-faint); opacity: 0.4; min-width: 32px; font-style: italic;
+      transition: opacity 0.2s;
+    }
+    .stack-item:hover .stack-roman { opacity: 1; color: var(--cardinal); }
+    .stack-body h4 { font-size: 15px; margin-bottom: 4px; }
+    .stack-body p { font-size: 14px; max-width: 100%; }
+
+    /* Discussion */
+    .discuss {
+      background: var(--paper-deep); border: 1px solid var(--rule);
+      border-left: 4px solid var(--cardinal-soft);
+      padding: 20px 24px; margin: 22px 0;
+      max-width: 820px;
+    }
+    .discuss-q {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+      color: var(--cardinal); text-transform: uppercase; margin-bottom: 8px;
+    }
+    .discuss p { font-size: 16px; font-weight: 500; color: var(--ink); max-width: 100%; margin-bottom: 12px; }
+    .discuss details summary {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      cursor: pointer; color: var(--cardinal); letter-spacing: 0.06em;
+      padding: 6px 0; list-style: none;
+    }
+    .discuss details summary::before { content: '▶ '; font-size: 9px; }
+    .discuss details[open] summary::before { content: '▼ '; }
+    .discuss details ul { margin: 10px 0 0 18px; }
+    .discuss details li { font-size: 14px; color: var(--ink-soft); margin-bottom: 6px; line-height: 1.5; }
+
+    /* Inline term tooltip */
+    span.term {
+      background: linear-gradient(to bottom, transparent 60%, rgba(180,135,41,0.28) 60%);
+      border-bottom: 1.5px dashed var(--cardinal);
+      cursor: help; position: relative;
+    }
+    span.term::after {
+      content: attr(data-def);
+      position: absolute; bottom: calc(100% + 6px); left: 50%;
+      transform: translateX(-50%);
+      background: var(--ink); color: var(--paper);
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      padding: 8px 12px; width: 220px; border-radius: 2px;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s;
+      z-index: 100; line-height: 1.5; text-align: center;
+      white-space: normal;
+    }
+    span.term:hover::after { opacity: 1; }
+
+    /* Back to Top */
+    #back-top {
+      position: fixed; bottom: 32px; right: 32px;
+      width: 46px; height: 46px; background: var(--cardinal);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; box-shadow: 3px 3px 0 var(--ink);
+      opacity: 0; transition: opacity 0.3s, transform 0.2s;
+      z-index: 500;
+    }
+    #back-top.visible { opacity: 1; }
+    #back-top:hover { transform: translateY(-4px); }
+    #back-top svg { width: 18px; height: 18px; stroke: var(--paper); }
+
+    /* Scroll Reveal */
+    .reveal { opacity: 0; transform: translateY(22px); transition: opacity 0.55s ease, transform 0.55s ease; }
+    .reveal.in { opacity: 1; transform: translateY(0); }
+
+    /* Interactive Visuals */
+
+    /* Eval Pyramid */
+    .eval-pyramid {
+      margin: 32px 0; max-width: 820px;
+      background: var(--paper-deep); border: 1px solid var(--rule);
+      padding: 28px 32px;
+    }
+    .eval-pyramid-title {
+      font-family: 'Fraunces', serif; font-size: 17px; font-weight: 700;
+      color: var(--ink); margin-bottom: 18px;
+    }
+    .pyramid-layer {
+      margin: 8px 0; padding: 14px 20px;
+      display: flex; align-items: center; gap: 16px;
+      border-left: 4px solid transparent;
+      transition: border-color 0.2s, background 0.2s, padding-left 0.2s;
+      cursor: default;
+    }
+    .pyramid-layer:hover { background: var(--paper); }
+    .pyramid-layer.control { border-color: var(--moss); }
+    .pyramid-layer.edge    { border-color: var(--gold); }
+    .pyramid-layer.boundary { border-color: var(--cardinal); }
+    .pyramid-layer-icon {
+      font-family: 'JetBrains Mono', monospace; font-size: 20px;
+      min-width: 34px; text-align: center;
+    }
+    .pyramid-layer-content h4 { font-size: 15px; margin-bottom: 4px; }
+    .pyramid-layer-content p { font-size: 13px; max-width: 100%; }
+    .pyramid-tag {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      margin-bottom: 4px; display: block;
+    }
+    .pyramid-layer.control .pyramid-tag { color: var(--moss); }
+    .pyramid-layer.edge .pyramid-tag { color: var(--gold); }
+    .pyramid-layer.boundary .pyramid-tag { color: var(--cardinal); }
+
+    /* Model Comparison Bars */
+    .model-compare {
+      margin: 32px 0; max-width: 820px;
+    }
+    .compare-title {
+      font-family: 'Fraunces', serif; font-size: 17px; font-weight: 700;
+      color: var(--ink); margin-bottom: 4px;
+    }
+    .compare-sub {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      color: var(--ink-faint); margin-bottom: 18px;
+    }
+    .compare-row {
+      display: flex; align-items: center; gap: 12px;
+      margin: 10px 0; min-height: 42px;
+    }
+    .compare-label {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      font-weight: 600; color: var(--ink); min-width: 200px; text-align: right;
+    }
+    .compare-track {
+      flex: 1; height: 26px; background: var(--paper-edge);
+      position: relative; overflow: visible;
+    }
+    .compare-fill {
+      height: 100%; width: 0; background: var(--cardinal);
+      transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+    .compare-fill.good { background: var(--moss); }
+    .compare-fill.warn { background: var(--gold); }
+    .compare-value {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      font-weight: 700; color: var(--ink); min-width: 80px;
+      padding-left: 8px;
+    }
+
+    /* GER Flow */
+    .ger-flow {
+      display: flex; gap: 0; max-width: 820px;
+      margin: 32px 0; align-items: stretch;
+      border: 1px solid var(--rule);
+    }
+    @media (max-width: 700px) { .ger-flow { flex-direction: column; } }
+    .ger-node {
+      flex: 1; padding: 24px 20px;
+      border-right: 1px solid var(--rule);
+      position: relative; cursor: default;
+      transition: background 0.2s;
+    }
+    .ger-node:last-child { border-right: none; }
+    .ger-node:hover { background: var(--paper-deep); }
+    .ger-node-num {
+      font-family: 'Fraunces', serif; font-size: 42px; font-weight: 800;
+      color: var(--cardinal); opacity: 0.18; line-height: 1;
+      font-style: italic;
+    }
+    .ger-node-label {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--cardinal); margin-bottom: 8px;
+    }
+    .ger-node h4 { font-size: 16px; margin-bottom: 8px; }
+    .ger-node p { font-size: 13px; max-width: 100%; }
+    .ger-arrow {
+      display: flex; align-items: center; padding: 0 6px;
+      font-size: 20px; color: var(--cardinal); font-weight: 800;
+    }
+    @media (max-width: 700px) {
+      .ger-arrow { transform: rotate(90deg); align-self: center; }
+    }
+
+    /* Hygiene checklist */
+    .hygiene-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+      max-width: 820px; margin: 24px 0;
+    }
+    @media (max-width: 600px) { .hygiene-grid { grid-template-columns: 1fr; } }
+    .hygiene-item {
+      padding: 14px 18px; border: 1px solid var(--rule);
+      background: var(--paper-deep);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .hygiene-item:hover { transform: translateY(-2px); box-shadow: 3px 3px 0 var(--ink); }
+    .hygiene-label {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--cardinal); margin-bottom: 6px; display: block;
+    }
+    .hygiene-item h4 { font-size: 14px; margin-bottom: 4px; }
+    .hygiene-item p { font-size: 13px; max-width: 100%; }
+
+    /* Footer */
+    footer {
+      border-top: 2px solid var(--ink);
+      background: var(--paper-deep);
+      padding: 42px 32px 32px;
+    }
+    .colophon {
+      max-width: 1080px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px;
+    }
+    @media (max-width: 700px) { .colophon { grid-template-columns: 1fr; } }
+    .colophon-col h5 {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--cardinal); margin-bottom: 10px;
+      border-bottom: 1px solid var(--rule); padding-bottom: 6px;
+    }
+    .colophon-col p {
+      font-size: 12px; color: var(--ink-faint); max-width: 100%; margin-bottom: 6px;
+    }
+    .colophon-bottom {
+      max-width: 1080px; margin: 24px auto 0;
+      border-top: 1px solid var(--rule); padding-top: 16px;
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      color: var(--ink-faint); letter-spacing: 0.06em;
+    }
+  </style>
+</head>
+<body>
+  <div id="progress-bar"></div>
+  <div id="cursor"></div>
+
+  <!-- Masthead -->
+  <header class="masthead">
+    <div class="masthead-title">The Claude Dispatch · Code with Claude London 2026</div>
+    <div class="masthead-issue">Vol. I · No. 09 · May 20, 2026 · Breakout</div>
+  </header>
+
+  <!-- Hero -->
+  <div class="container">
+    <section class="hero">
+      <div class="hero-grid">
+        <div class="issue-stamp">№09<small>WEEK 1</small></div>
+        <div>
+          <h1>The Prompting <em>Playbook</em></h1>
+          <p class="deck">Eval-driven optimization, XML hygiene, and the Generate-Evaluate-Repair loop — the engineering discipline behind prompts that actually work.</p>
+          <div class="byline">
+            Speaker: <span>Margot Vanlar</span> · Applied AI Engineer, Anthropic London ·
+            Code with Claude London 2026 · May 20, 2026
+          </div>
+          <div class="toc-hint">↓ Tabs: 總覽 · Prompt 健康檢查 · 三大失效模式 · 代理迴圈 · 思考題</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Stat Strip -->
+  <div class="stat-strip">
+    <div class="stat-item">
+      <div class="stat-num">5</div>
+      <div class="stat-label">Eval Test Cases</div>
+      <div class="stat-tooltip">Meridian Mobile demo eval suite: 1 control + 3 edge cases + 1 boundary case</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">4</div>
+      <div class="stat-label">Anti-Patterns Found</div>
+      <div class="stat-tooltip">Prompt hygiene audit revealed 4 common anti-patterns in the real-world telecom prompt</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">3×</div>
+      <div class="stat-label">Token Cost (Adaptive)</div>
+      <div class="stat-tooltip">Using Opus 4.7 with adaptive thinking tripled both token usage and latency vs baseline</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">3</div>
+      <div class="stat-label">Prompts in GER Loop</div>
+      <div class="stat-tooltip">Generate → Evaluate → Repair: 3 simple focused prompts outperform 1 complex mega-prompt</div>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <nav class="nav-wrap">
+    <div class="nav-tabs" id="nav-tabs">
+      <button class="nav-tab active" data-tab="overview">I · 總覽</button>
+      <button class="nav-tab" data-tab="hygiene">II · Prompt 健康檢查</button>
+      <button class="nav-tab" data-tab="failures">III · 三大失效模式</button>
+      <button class="nav-tab" data-tab="agentic">IV · 代理迴圈</button>
+      <button class="nav-tab" data-tab="discuss">V · 思考題</button>
+      <div class="tab-indicator" id="tab-indicator"></div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <article>
+
+      <!-- ===== TAB I: 總覽 ===== -->
+      <div class="tab-panel active" id="tab-overview">
+
+        <section class="chapter reveal">
+          <span class="roman">I</span>
+          <h2>核心論題</h2>
+          <p class="lede">Prompting 不是感覺，而是工程紀律。Margot Vanlar 帶領我們走過兩個最真實的場景——維護一個千行爛 prompt，以及從零打造一個排班 Agent——展示如何用評估套件、XML 結構與多代理迴圈讓 AI 系統真正可靠。</p>
+
+          <div class="pullquote reveal">
+            <p><strong>"Prompting is arguably one of the first skills, if not the first skill, that we had to learn as engineers when we first started to work with LLMs — and even now it continues to be one of the most critical skills to building effective AI systems."</strong>
+            <span class="zh">「Prompting 可說是我們工程師最早需要學習的技能之一——即便到現在，它仍然是建構有效 AI 系統最核心的技能之一。」</span></p>
+            <cite>— Margot Vanlar, Applied AI Engineer, Anthropic</cite>
+          </div>
+
+          <aside class="primer reveal">
+            <span class="primer-tag">給初學者 · 一句話搞懂 Prompting</span>
+            <h5>什麼是 Prompt Engineering？</h5>
+            <p>Prompt 是你寫給 AI 的「工作說明書」。但和一般員工不同，AI 字面理解每一句話——說錯了就會錯、說太多了會混亂、說太少了會亂猜。</p>
+            <ul>
+              <li><strong>好的 Prompt</strong>：結構清楚、角色分明、規則一致</li>
+              <li><strong>壞的 Prompt</strong>：一大段、混雜新舊規則、靠「語氣」要求結果</li>
+              <li><strong>最壞的誤解</strong>：「寫 CRITICAL: 這很重要！」以為會讓模型更努力</li>
+            </ul>
+            <p>Prompt Engineering 的本質是：<em>設計讓模型做出你期望行為的說明系統</em>。</p>
+          </aside>
+
+          <h3>本講兩大場景</h3>
+          <div class="duo reveal">
+            <div class="duo-card bad">
+              <span class="duo-tag">場景 A</span>
+              <h4>維護現有 Prompt</h4>
+              <p>模型升級後，測試案例突然失敗。堆疊多年的防禦性補丁、無主的協作 Prompt、混雜的政策與歷史規則——如何系統性清理？</p>
+            </div>
+            <div class="duo-card good">
+              <span class="duo-tag">場景 B</span>
+              <h4>從零打造新 Agent</h4>
+              <p>面對複雜的零售排班問題（多員工、硬性限制、長輸出），如何從最小 Prompt 開始、選對模型、最終用 Generate-Evaluate-Repair 迴圈解決？</p>
+            </div>
+          </div>
+
+          <h3>十大核心洞見</h3>
+          <div class="ledger reveal">
+            <div class="ledger-row">
+              <div class="ledger-num">01</div>
+              <div class="ledger-body"><strong>評估先行</strong>——任何改動之前，先建立 Eval Suite。沒有評估，你不知道是否真的進步了。</div>
+            </div>
+            <div class="ledger-row">
+              <div class="ledger-num">02</div>
+              <div class="ledger-body"><strong>Eval 三型案例</strong>——控制組（必過基準）、邊緣案例（曾失敗的規則測試）、邊界案例（該拒絕 or 轉接真人的情境）。</div>
+            </div>
+            <div class="ledger-row">
+              <div class="ledger-num">03</div>
+              <div class="ledger-body"><strong>XML 標籤立竿見影</strong>——將 role / policy / guidelines / tone 分開標注，立刻提升模型對規則的理解與遵循。</div>
+            </div>
+            <div class="ledger-row">
+              <div class="ledger-num">04</div>
+              <div class="ledger-body"><strong>Stop Sequence > 口頭規範</strong>——要求 JSON 輸出，用 API 層 stop_sequences 比在 Prompt 裡叮囑更可靠。</div>
+            </div>
+            <div class="ledger-row">
+              <div class="ledger-num">05</div>
+              <div class="ledger-body"><strong>版本控制防禦性補丁</strong>——記錄每個防禦性指令的<em>原因</em>，否則新模型會把舊補丁過度優化。</div>
+            </div>
+            <div class="ledger-row">
+              <div class="ledger-num">06</div>
+              <div class="ledger-body"><strong>指令 ≠ 能力</strong>——寫「務必精確計算」無法讓模型更擅長心算。給工具（Tool）才能真正擴展能力。</div>
+            </div>
+            <div class="ledger-row">
+              <div class="ledger-num">07</div>
+              <div class="ledger-body"><strong>說完整故事</strong>——不要只告訴模型「避免 X 的成本」，也要說「不避免 X 的損失」，模型越聰明越需要全貌。</div>
+            </div>
+            <div class="ledger-row">
+              <div class="ledger-num">08</div>
+              <div class="ledger-body"><strong>模型 vs Prompt vs 架構</strong>——當一個 Prompt + 大模型解不了時，考慮架構拆分，而非無限加大模型。</div>
+            </div>
+            <div class="ledger-row">
+              <div class="ledger-num">09</div>
+              <div class="ledger-body"><strong>Generate-Evaluate-Repair</strong>——三個簡單 Prompt 的迴圈，成本和延遲都低於 Opus 4.7 + Adaptive Thinking。</div>
+            </div>
+            <div class="ledger-row">
+              <div class="ledger-num">10</div>
+              <div class="ledger-body"><strong>軟性約束 Runtime 注入</strong>——GER 迴圈的評估 Prompt 可以在執行時動態加入軟性限制，無須修改後端程式碼。</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="chapter reveal">
+          <span class="roman">II</span>
+          <h2>案例背景：Meridian Mobile</h2>
+          <p class="lede">本演講以電信客服機器人「Meridian Mobile」為範例 Prompt——一個被多人協作維護、混雜各時期補丁、在模型升級後出現多個測試失敗的典型生產環境 Prompt。</p>
+
+          <aside class="primer reveal">
+            <span class="primer-tag">給初學者 · 什麼是生產環境 Prompt？</span>
+            <h5>為什麼 Prompt 會變得「爛掉」？</h5>
+            <p>想像一份員工手冊，一開始只有10條規定，三年後有50人各自加了一條，還有人加了「如果碰到上次的問題，不要這樣做」。沒有人知道哪條規定是為什麼加的，有些規定甚至互相矛盾。</p>
+            <ul>
+              <li><strong>無明確擁有者</strong>：多人協作，誰都可以加，沒人負責刪</li>
+              <li><strong>歷史補丁堆積</strong>：每次出問題就加一條禁令，從不移除</li>
+              <li><strong>模型遷移失效</strong>：舊模型的防禦規則，新模型過度遵循</li>
+            </ul>
+            <p>這就是為什麼「先有 Eval，再動 Prompt」是工程紀律，而不只是建議。</p>
+          </aside>
+
+          <div class="eval-pyramid reveal">
+            <div class="eval-pyramid-title">Eval Suite 三型案例架構</div>
+            <div class="pyramid-layer control">
+              <div class="pyramid-layer-icon">✓</div>
+              <div class="pyramid-layer-content">
+                <span class="pyramid-tag">控制組 · Control Cases</span>
+                <h4>無爭議基準案例</h4>
+                <p>模型必須穩定通過的基本問題。例：「基本方案的數據上限是多少？」不應受任何調整影響。</p>
+              </div>
+            </div>
+            <div class="pyramid-layer edge">
+              <div class="pyramid-layer-icon">⚠</div>
+              <div class="pyramid-layer-content">
+                <span class="pyramid-tag">邊緣案例 · Edge Cases</span>
+                <h4>曾失敗的問題</h4>
+                <p>以前出過錯、因此加了防禦規則的案例。例：按比例計費計算、帳務爭議升級。用來驗證防禦規則是否仍有效。</p>
+              </div>
+            </div>
+            <div class="pyramid-layer boundary">
+              <div class="pyramid-layer-icon">⛔</div>
+              <div class="pyramid-layer-content">
+                <span class="pyramid-tag">邊界案例 · Boundary Cases</span>
+                <h4>能力邊界與拒絕測試</h4>
+                <p>模型應該拒絕回答或轉接真人的情境。例：複雜帳務爭議 → 應升級給客服人員而非自行診斷。</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- ===== TAB II: Prompt 健康檢查 ===== -->
+      <div class="tab-panel" id="tab-hygiene">
+
+        <section class="chapter reveal">
+          <span class="roman">I</span>
+          <h2>Prompt 通識衛生</h2>
+          <p class="lede">在針對失效模式做出修改之前，先做一輪「通識衛生清理」——就像整理一間凌亂的房間，讓模型（和你自己）能清楚看到規則的全貌。</p>
+
+          <aside class="primer reveal">
+            <span class="primer-tag">給初學者 · Prompt 衛生是什麼？</span>
+            <h5>為什麼 Prompt 需要「整理」？</h5>
+            <p>如果一份工作說明書讓你都看不懂哪段是規定、哪段是舉例、哪段是警告——模型也看不懂。這不是模型能力的問題，是資訊組織的問題。</p>
+            <ul>
+              <li>把所有規則塞在一段 → 模型不知道優先級</li>
+              <li>從網站貼上資料，連 Hero Image 說明都帶進來 → 模型讀了無用資訊</li>
+              <li>說「你是 Alex，一名客服人員」→ 欺騙模型，可能引發不可預期行為</li>
+            </ul>
+            <p>解法：用 XML 標籤讓結構一目了然。</p>
+          </aside>
+
+          <h3>四大常見反模式</h3>
+          <div class="hygiene-grid reveal">
+            <div class="hygiene-item">
+              <span class="hygiene-label">反模式 1</span>
+              <h4>假裝模型是人類</h4>
+              <p>「你是 Alex，一位真人客服員工。」— 這不是事實，且會讓模型在邊界情境行為不一致。</p>
+            </div>
+            <div class="hygiene-item">
+              <span class="hygiene-label">反模式 2</span>
+              <h4>複製貼上垃圾內容</h4>
+              <p>從網站貼上政策文件時，Hero Image 說明、Cookie 警告也一起進了 Prompt。模型要處理無用資訊。</p>
+            </div>
+            <div class="hygiene-item">
+              <span class="hygiene-label">反模式 3</span>
+              <h4>一巨段塞所有規則</h4>
+              <p>政策、語氣、流程、歷史補丁全塞在一個大段落。沒有結構，模型難以區分規則的重要性。</p>
+            </div>
+            <div class="hygiene-item">
+              <span class="hygiene-label">反模式 4</span>
+              <h4>過期的防禦性補丁</h4>
+              <p>「絕不要給客戶錯誤資訊，請指向 URL。」這條舊規則在新一代模型上被過度遵循，反而隱瞞正確資訊。</p>
+            </div>
+          </div>
+
+          <h3>解法：XML 標籤結構化</h3>
+          <div class="pullquote reveal">
+            <p><strong>"If you're reading a prompt and you can't tell guidelines from policy from data, most likely the model isn't able to either."</strong>
+            <span class="zh">「如果你讀一份 Prompt 時分不清哪段是指引、哪段是政策、哪段是資料——模型很可能也分不清。」</span></p>
+            <cite>— Margot Vanlar</cite>
+          </div>
+
+          <aside class="primer reveal">
+            <span class="primer-tag">給初學者 · 什麼是 XML 標籤？</span>
+            <h5>XML 標籤如何幫助模型？</h5>
+            <p>XML 標籤就像幫文件加上標題牌。<code>&lt;role&gt;...&lt;/role&gt;</code> 告訴模型這段是關於它的身份；<code>&lt;policy&gt;...&lt;/policy&gt;</code> 是規則。</p>
+            <ul>
+              <li><strong>之前</strong>：「你是一個客服助手。以下是一些規定...（一大段）」</li>
+              <li><strong>之後</strong>：<code>&lt;role&gt;客服助手&lt;/role&gt;</code> + <code>&lt;policy&gt;...&lt;/policy&gt;</code> + <code>&lt;tone&gt;...&lt;/tone&gt;</code></li>
+            </ul>
+            <p>結果：模型對各類規則的理解與遵循度顯著提升，尤其在複雜案例上。</p>
+          </aside>
+
+          <h3>輸出契約（Output Contract）</h3>
+          <p>除了整理 Prompt 內容，還需要確保輸出格式的一致性。Margot 展示了三個層次的輸出控制：</p>
+
+          <div class="stack reveal">
+            <div class="stack-item">
+              <div class="stack-roman">I</div>
+              <div class="stack-body">
+                <h4>Prompt 內定義輸出格式</h4>
+                <p>在 Prompt 中加入 <code>&lt;output_format&gt;</code> 區塊，告訴模型用 XML 標籤包住回應。基礎層次，但不是最可靠的。</p>
+              </div>
+            </div>
+            <div class="stack-item">
+              <div class="stack-roman">II</div>
+              <div class="stack-body">
+                <h4>API 層 Stop Sequences</h4>
+                <p>在 API 呼叫中設定 <span class="term" data-def="Stop Sequence: 告訴模型在遇到特定字符時停止生成，確保輸出不超出預期結構">stop_sequences</span>，偵測到 XML 閉合標籤時就停止生成。比口頭規範更可靠。</p>
+              </div>
+            </div>
+            <div class="stack-item">
+              <div class="stack-roman">III</div>
+              <div class="stack-body">
+                <h4>Structured Outputs（最強）</h4>
+                <p>使用 <span class="term" data-def="Structured Outputs: 強制模型按照預定義的 JSON Schema 輸出，確保格式永遠正確">Structured Outputs</span> API，以程式化方式強制模型輸出符合 JSON Schema 的格式。複雜巢狀 JSON 場景的最佳選擇。</p>
+              </div>
+            </div>
+          </div>
+
+          <aside class="primer reveal">
+            <span class="primer-tag">給初學者 · Stop Sequence 是什麼？</span>
+            <h5>為什麼不能只靠「請輸出 JSON」？</h5>
+            <p>就像請人寫信「請在最後一段結束」——他可能多寫了幾行。Stop Sequence 是給模型的「停筆訊號」：看到這個字符，就立刻停。</p>
+            <ul>
+              <li>如果模型輸出是 <code>&lt;response&gt;...&lt;/response&gt;</code>，設定 stop_sequences = <code>["&lt;/response&gt;"]</code></li>
+              <li>模型一寫完閉合標籤，API 就截斷輸出</li>
+              <li>對複雜 JSON Schema → 直接用 Structured Outputs，不要靠 stop_sequences</li>
+            </ul>
+            <p>越往 API 層控制，越可靠；越靠 Prompt 口頭叮嚀，越脆弱。</p>
+          </aside>
+
+          <div class="story reveal">
+            <span class="story-tag">這個故事的啟示 · Prompt 清理立竿見影</span>
+            <h4>只是「整理」，就讓測試通過率立刻上升</h4>
+            <p>Margot 在現場展示：取出一個已有測試失敗的 Prompt，僅做三件事——1. 移除「你是真人」的說法，2. 刪除從網站複製進來的垃圾資料，3. 加上 XML 結構標籤——重新跑 Eval 後，某個邊緣案例立刻從失敗變為通過。</p>
+            <blockquote>"Simply clearing up the prompt with a better structure, with a better role description, has improved the performance."</blockquote>
+            <p>沒有改任何「規則」，只是改了「組織方式」。這說明一件事：很多時候模型表現差，不是因為它不夠強，而是因為 Prompt 讓它沒辦法發揮。</p>
+          </div>
+
+          <h3>防禦性補丁的版本控制</h3>
+          <aside class="primer reveal">
+            <span class="primer-tag">給初學者 · 什麼是防禦性補丁（Defensive Patch）？</span>
+            <h5>為什麼舊規則會「反咬」你？</h5>
+            <p>過去模型常常會犯特定錯誤，工程師就在 Prompt 裡加了一條「絕對不要做 X」。問題是，新一代模型指令遵循能力更強——它會「更認真地」不做 X，即使 X 其實是正確答案。</p>
+            <ul>
+              <li><strong>舊場景</strong>：模型 A 經常給出錯誤合約資訊 → 加補丁「有疑問就給 URL」</li>
+              <li><strong>新場景</strong>：模型 B 指令遵循更強 → 即使知道正確答案，也一律給 URL</li>
+              <li><strong>解法</strong>：用版本控制記錄「這條補丁是為了解決 X 問題在 Y 日期加入的」</li>
+            </ul>
+            <p>這樣你才能在模型升級後，有根據地決定哪些補丁可以移除。</p>
+          </aside>
+        </section>
+
+      </div>
+
+      <!-- ===== TAB III: 三大失效模式 ===== -->
+      <div class="tab-panel" id="tab-failures">
+
+        <section class="chapter reveal">
+          <span class="roman">I</span>
+          <h2>失效模式一：資訊隱瞞</h2>
+          <p class="lede">模型不只會幻覺——它也會<em>隱瞞</em>它本來就擁有的正確資訊。Hotspot 案例揭示：過度優化的防禦性補丁，會讓新模型選擇沉默而非誠實。</p>
+
+          <div class="story reveal">
+            <span class="story-tag">關鍵故事 · Hotspot 的消失</span>
+            <h4>模型知道答案，卻選擇不告訴你</h4>
+            <p>客戶問：「我的無限方案有多少 Hotspot 流量？」客戶帳號資料中清楚寫著 5 GB。但模型的回答是：「無限方案一般包含 4 GB，但您的是舊方案，詳情請查看 URL。」</p>
+            <blockquote>"The customer test case that we're dealing with is on a legacy plan. The customer data which we're feeding to the prompt includes the amount of hotspot data — they have 5 gigabytes. But the model is telling the customer to go check this out themselves."</blockquote>
+            <p>為什麼？因為 Prompt 裡有一條舊補丁：「切勿給客戶錯誤的方案細節，有疑問請提供 URL。」這條規則在舊模型時代是防止幻覺的，但新模型指令遵循更精確——它把「有疑問」解讀成「只要是舊方案客戶，就是有疑問情境」。</p>
+            <p>教訓：幻覺（編造資料）和隱瞞（不說已知答案）是同樣危險的兩個極端，而過度防禦會把模型推向後者。</p>
+          </div>
+
+          <h3>解法：更新資訊來源的優先級</h3>
+          <p>修改：明確告訴模型「客戶帳號資料是最可靠的資訊來源，遇到舊方案客戶，直接使用帳號資料回答，而非轉向一般政策文件。」</p>
+
+          <aside class="primer reveal">
+            <span class="primer-tag">給初學者 · 資訊隱瞞 vs 幻覺</span>
+            <h5>兩種模型可能犯的相反錯誤</h5>
+            <p>大多數人擔心模型「亂說」（幻覺），但鮮少有人注意它「不說」（隱瞞）。這兩種問題都源於 Prompt 設計。</p>
+            <ul>
+              <li><strong>幻覺</strong>：模型沒有資訊，卻編造一個 → 過去常見，現在模型變強後少見</li>
+              <li><strong>隱瞞</strong>：模型有正確資訊，但因為防禦規則選擇沉默 → 隨新模型指令遵循能力增強而增加</li>
+            </ul>
+            <p>解法：在 Prompt 中明確定義資訊優先級，而非一味「有疑問就不答」。</p>
+          </aside>
+        </section>
+
+        <section class="chapter reveal">
+          <span class="roman">II</span>
+          <h2>失效模式二：指令 ≠ 能力</h2>
+          <p class="lede">告訴模型「這非常重要，請精確計算」不會讓它更擅長心算。能力邊界只能透過工具（Tool）來擴展，而不是語氣強度。</p>
+
+          <div class="pullquote reveal">
+            <p><strong>"The key lesson to take away here is instructions don't add capability. Telling the model it's critical to do a calculation right doesn't make it better at mental math. So the correct approach was to give it a tool overall."</strong>
+            <span class="zh">「核心教訓是：指令無法增加能力。告訴模型這個計算非常重要，並不會讓它更擅長心算。正確的做法是給它一個工具。」</span></p>
+            <cite>— Margot Vanlar</cite>
+          </div>
+
+          <div class="story reveal">
+            <span class="story-tag">關鍵故事 · 按比例計費的失敗</span>
+            <h4>說「很重要」不能讓 AI 會算數學</h4>
+            <p>客戶問：「如果我月中升級到 30 GB 方案，下個月帳單會是多少？」這需要精確的按比例計費（Proration）計算。</p>
+            <blockquote>"In the prompt it says: 'critical: always calculate any pro-rated amounts correctly.' Telling the model to do a good job isn't particularly helpful when we don't give the model the capability to actually do a good job."</blockquote>
+            <p>模型的回應？看起來在思考，做了點「心算」，但給出的是模糊的估算而非精確數字。原因很簡單：LLM 的訓練目標不是精確算術，它最擅長的是語言推理。</p>
+            <p>解法：在 API 中定義一個 <code>calculate_proration</code> 工具，告訴模型「需要計算時，呼叫這個工具」。結果：所有測試案例立刻通過，計算精確無誤。</p>
+          </div>
+
+          <aside class="primer reveal">
+            <span class="primer-tag">給初學者 · 什麼是 Tool Use？</span>
+            <h5>為什麼 LLM 需要「工具」？</h5>
+            <p>把 LLM 想成一個超級聰明但沒有計算機的人。它能解釋題目、判斷邏輯、提取參數——但精確計算不是它的強項。給它一個計算機（Tool），它就能做精確計算。</p>
+            <ul>
+              <li><strong>模型的強項</strong>：語言理解、邏輯推理、參數提取、決策判斷</li>
+              <li><strong>工具的強項</strong>：精確計算、資料庫查詢、即時資訊獲取、外部 API 呼叫</li>
+              <li><strong>正確分工</strong>：模型決定「何時需要計算」，工具「執行計算」，模型「解釋結果」</li>
+            </ul>
+            <p>Rule of thumb：如果你在 Prompt 裡寫「請精確計算 X」，那就應該給它一個 Tool 來做 X。</p>
+          </aside>
+
+          <h3>工具定義三步驟</h3>
+          <div class="stack reveal">
+            <div class="stack-item">
+              <div class="stack-roman">I</div>
+              <div class="stack-body">
+                <h4>Prompt 中說明工具用途</h4>
+                <p>「需要計算按比例費用時，使用 <code>calculate_proration</code> 工具。」告訴模型工具存在及使用時機。</p>
+              </div>
+            </div>
+            <div class="stack-item">
+              <div class="stack-roman">II</div>
+              <div class="stack-body">
+                <h4>API 中定義工具 Schema</h4>
+                <p>告訴 API：「這個工具叫什麼、接受什麼參數（升級日期、當前計費周期、舊方案費用、新方案費用）。」</p>
+              </div>
+            </div>
+            <div class="stack-item">
+              <div class="stack-roman">III</div>
+              <div class="stack-body">
+                <h4>後端實作工具邏輯</h4>
+                <p>寫真正的數學計算程式。模型負責提取正確參數，工具負責精確計算，兩者各司其職。</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="chapter reveal">
+          <span class="roman">III</span>
+          <h2>失效模式三：片面故事</h2>
+          <p class="lede">當你只告訴模型「避免 X 的代價」，它會全力避免 X——即使不避免才是更好的選擇。越智能的模型，越需要完整的兩面資訊。</p>
+
+          <div class="story reveal">
+            <span class="story-tag">關鍵故事 · 升級真人的代價</span>
+            <h4>模型知道規則，但不知道規則背後的故事</h4>
+            <p>帳務爭議情境：客戶有一筆不明費用，理應升級給真人客服處理。但模型反而試圖自行診斷問題。</p>
+            <blockquote>"The initial instructions said: 'Avoid escalating or transferring to a care specialist unless absolutely necessary, as it costs approximately $8 and it counts against our team's fast contract resolution.' This is only giving one side of the story, right? We're telling it what the cost is to escalating, but not the benefit."</blockquote>
+            <p>模型的「邏輯」完全正確——它確實在最小化升級成本。但 Prompt 忘了告訴它：如果複雜帳務問題沒解決，客戶可能離開，損失遠大於 $8 的升級成本。</p>
+            <p>修改後的 Prompt：「升級給真人花費 $8。但帳務問題若未解決，客戶可能要求退款並流失，損失遠高於此。請在兩者之間做出最佳判斷。」結果：模型在帳務爭議情境下正確升級。</p>
+          </div>
+
+          <div class="pullquote reveal">
+            <p><strong>"Specifically as models become more intelligent, we need to remember to state both sides of the trade-offs because our models are becoming better themselves at making those trade-offs themselves."</strong>
+            <span class="zh">「隨著模型越來越聰明，我們需要記得說出權衡的兩面——因為我們的模型正在變得更擅長自己做出這些權衡。」</span></p>
+            <cite>— Margot Vanlar</cite>
+          </div>
+
+          <aside class="primer reveal">
+            <span class="primer-tag">給初學者 · 什麼是目標過度優化？</span>
+            <h5>為什麼聰明的模型更危險？</h5>
+            <p>想像你告訴員工「盡量不要讓客戶等待」——一個普通員工可能做到 80% 的程度。但一個超級聰明的員工可能為了不讓人等待，做出了完全錯誤的決定（例如：直接拒絕複雜申請）。</p>
+            <ul>
+              <li><strong>舊模型</strong>：指令遵循能力弱，過度優化風險低</li>
+              <li><strong>新模型</strong>：指令遵循能力強，給了單一目標就會不計代價達成</li>
+              <li><strong>解法</strong>：提供完整的 Trade-off 資訊，讓模型自己做出平衡決策</li>
+            </ul>
+            <p>黃金法則：你在 Prompt 裡提供的資訊，決定了模型做決策時的全部依據。</p>
+          </aside>
+        </section>
+
+      </div>
+
+      <!-- ===== TAB IV: 代理迴圈 ===== -->
+      <div class="tab-panel" id="tab-agentic">
+
+        <section class="chapter reveal">
+          <span class="roman">I</span>
+          <h2>從零打造排班 Agent</h2>
+          <p class="lede">面對複雜的零售排班問題——8 名員工、硬性限制、一週排程輸出——Margot 系統性地比較了四種方法，最終找到了在成本、延遲、彈性三方面最優的架構。</p>
+
+          <aside class="primer reveal">
+            <span class="primer-tag">給初學者 · 為什麼排班是 Hard Problem？</span>
+            <h5>排班問題比看起來複雜得多</h5>
+            <p>零售排班聽起來很日常，但對 AI 是個組合爆炸問題：8 個員工 × 7 天 × 多個班次，還有「每人每週不超過 X 小時」「至少 Y 人值大夜班」等硬性規則。</p>
+            <ul>
+              <li><strong>長輸出問題</strong>：完整一週排程輸出很長，容易超出 max tokens</li>
+              <li><strong>多規則驗證</strong>：需要同時確保所有約束都被滿足，難以口頭叮囑</li>
+              <li><strong>軟性約束</strong>：「盡量不排某兩人同班」這種非硬性規則難以程式化</li>
+            </ul>
+            <p>這是測試「一個 Prompt vs 多個 Prompt」最好的場景。</p>
+          </aside>
+
+          <h3>四種方法對比</h3>
+          <div class="model-compare reveal" id="compare-section">
+            <div class="compare-title">方法比較：排班 Agent 違規次數（越低越好）</div>
+            <div class="compare-sub">5 次試驗中的總違規數 — 0 = 全部通過</div>
+
+            <div class="compare-row">
+              <div class="compare-label">A · Sonnet 4.6 + 簡單 Prompt</div>
+              <div class="compare-track">
+                <div class="compare-fill" data-w="100" style="background:var(--cardinal);"></div>
+              </div>
+              <div class="compare-value">全部失敗</div>
+            </div>
+            <div class="compare-row">
+              <div class="compare-label">B · Opus 4.7 + 簡單 Prompt</div>
+              <div class="compare-track">
+                <div class="compare-fill warn" data-w="70" style="background:var(--gold);"></div>
+              </div>
+              <div class="compare-value">仍失敗，違規減少</div>
+            </div>
+            <div class="compare-row">
+              <div class="compare-label">C · Opus 4.7 + Adaptive Thinking</div>
+              <div class="compare-track">
+                <div class="compare-fill good" data-w="15" style="background:var(--moss);"></div>
+              </div>
+              <div class="compare-value">全通過 · 3× 成本</div>
+            </div>
+            <div class="compare-row">
+              <div class="compare-label">D · Sonnet 4.6 + 更好 Prompt</div>
+              <div class="compare-track">
+                <div class="compare-fill warn" data-w="50" style="background:var(--gold);"></div>
+              </div>
+              <div class="compare-value">2/5 通過 · token 超限</div>
+            </div>
+            <div class="compare-row">
+              <div class="compare-label">E · GER 迴圈（Sonnet 4.6）</div>
+              <div class="compare-track">
+                <div class="compare-fill good" data-w="5" style="background:var(--moss);"></div>
+              </div>
+              <div class="compare-value">全通過 · 最低成本</div>
+            </div>
+          </div>
+
+          <aside class="primer reveal">
+            <span class="primer-tag">給初學者 · Adaptive Thinking 是什麼？</span>
+            <h5>讓模型自己決定「想多少」</h5>
+            <p>一般模型是：你問問題→模型直接回答。Adaptive Thinking 是：你問問題→模型先「想一想」→再回答。就像讓聰明的朋友先在腦子裡推演，再告訴你答案。</p>
+            <ul>
+              <li><strong>好處</strong>：難題（如複雜排班）的解題正確率大幅提升</li>
+              <li><strong>代價</strong>：思考過程消耗大量 Token，延遲 3 倍起跳</li>
+              <li><strong>適用場景</strong>：一次性的複雜推理任務，不適合高頻呼叫</li>
+            </ul>
+            <p>Margot 的結論：Adaptive Thinking 有效，但代價高。GER 迴圈更適合生產環境。</p>
+          </aside>
+        </section>
+
+        <section class="chapter reveal">
+          <span class="roman">II</span>
+          <h2>Generate-Evaluate-Repair 迴圈</h2>
+          <p class="lede">三個簡單的 Prompt，各司其職，互相協作。GER 迴圈不只比單一超大 Prompt 更有效，還能在執行時動態注入軟性約束，展現出架構上的彈性。</p>
+
+          <div class="ger-flow reveal">
+            <div class="ger-node">
+              <div class="ger-node-num">1</div>
+              <div class="ger-node-label">Generate</div>
+              <h4>生成草稿</h4>
+              <p>Simple Prompt 讓模型生成第一版排班表。不強求完美，允許有違規——有後續環節處理。</p>
+            </div>
+            <div class="ger-arrow">→</div>
+            <div class="ger-node">
+              <div class="ger-node-num">2</div>
+              <div class="ger-node-label">Evaluate</div>
+              <h4>LLM 評估器</h4>
+              <p>第二個 Prompt：檢驗每條規則是否違規，提供具體證據（「王小明在週三已排班 8 小時，再排違反上限」）。不靠程式碼，靠語言推理。</p>
+            </div>
+            <div class="ger-arrow">→</div>
+            <div class="ger-node">
+              <div class="ger-node-num">3</div>
+              <div class="ger-node-label">Repair</div>
+              <h4>修復補丁</h4>
+              <p>第三個 Prompt：收到違規清單，針對性地微調排班表，而非重新生成全部。精準、高效。</p>
+            </div>
+          </div>
+
+          <div class="pullquote reveal">
+            <p><strong>"We have three very simple prompts but they're now running independently rather than trying to do everything in one large prompt."</strong>
+            <span class="zh">「我們有三個非常簡單的 Prompt，各自獨立運行，而不是試圖用一個巨大的 Prompt 做所有事情。」</span></p>
+            <cite>— Margot Vanlar</cite>
+          </div>
+
+          <h3>GER 迴圈的隱藏優勢：軟性約束</h3>
+          <aside class="primer reveal">
+            <span class="primer-tag">給初學者 · 硬性約束 vs 軟性約束</span>
+            <h5>什麼是「盡量」？什麼是「必須」？</h5>
+            <p>排班有兩種規則：必須滿足的（硬性：每人每週不超過 40 小時）和盡量滿足的（軟性：兩位員工最好不要同班）。</p>
+            <ul>
+              <li><strong>硬性約束</strong>：用 Python 程式碼驗證，違反就視為失敗</li>
+              <li><strong>軟性約束</strong>：無法程式化，需要語言理解（「John 和 Mary 最近有衝突，盡量分開」）</li>
+              <li><strong>GER 的優勢</strong>：軟性約束可以直接寫在評估 Prompt 裡，每次執行時動態調整</li>
+            </ul>
+            <p>這意味著：不需要改程式碼，只需要改 Prompt，業務需求的調整就能立刻生效。</p>
+          </aside>
+
+          <p>GER 迴圈中，軟性約束可以在 Runtime 直接注入到 Evaluate Prompt：</p>
+          <div class="duo reveal">
+            <div class="duo-card bad">
+              <span class="duo-tag">傳統方法</span>
+              <h4>改後端程式碼</h4>
+              <p>「John 和 Mary 最好不要同班」→ 寫 Python 邏輯→ 部署→ 測試→ 上線。幾天的工作量。</p>
+            </div>
+            <div class="duo-card good">
+              <span class="duo-tag">GER 方法</span>
+              <h4>Runtime 注入</h4>
+              <p>在 Evaluate Prompt 裡加一行：「As a soft constraint: try to separate John and Mary.」立即生效。</p>
+            </div>
+          </div>
+
+          <h3>兩條可行的生產路線</h3>
+          <div class="ledger reveal">
+            <div class="ledger-row">
+              <div class="ledger-num">路線 A</div>
+              <div class="ledger-body"><strong>Opus 4.7 + Adaptive Thinking</strong>：最簡單的架構，一個 Prompt 解決。代價：成本和延遲 3 倍，不適合高頻呼叫。適用：低頻、高價值的關鍵任務。</div>
+            </div>
+            <div class="ledger-row">
+              <div class="ledger-num">路線 B</div>
+              <div class="ledger-body"><strong>GER 迴圈 + Sonnet 4.6</strong>：三個簡單 Prompt，成本低、延遲低、支援軟性約束動態調整。適用：生產環境、需要定期執行、有業務規則靈活性需求。</div>
+            </div>
+          </div>
+
+          <div class="story reveal">
+            <span class="story-tag">關鍵故事 · 架構選擇的本質</span>
+            <h4>不是要更大的模型，而是更好的架構</h4>
+            <p>Margot 的排班實驗展示了一個普遍規律：當一個單一 Prompt + 大模型解不了問題時，工程師的第一反應往往是「換更大的模型」——但這不總是最好的答案。</p>
+            <blockquote>"Rather than using one prompt to address everything, we're actually isolating different tasks where it's easy and repeatable to separate out the steps."</blockquote>
+            <p>GER 迴圈的每個節點都非常簡單：Generator 不需要驗證，Evaluator 不需要生成，Repairer 不需要重新推理全部。這種「分工」讓每個 Prompt 都能用更小的模型完成，總成本反而更低。這是系統設計思維在 AI 應用中的具體體現。</p>
+          </div>
+
+          <aside class="primer reveal">
+            <span class="primer-tag">給初學者 · 多 Prompt 架構是「Agentic」嗎？</span>
+            <h5>Agent 不一定要做很多事——它只需要「協調多個步驟」</h5>
+            <p>很多人以為「Agent」是一個能自主做很多事的大系統。但 GER 迴圈展示的是：Agentic 架構的核心是<em>把複雜任務分解成多個簡單步驟，讓每個步驟都能做好自己的事</em>。</p>
+            <ul>
+              <li><strong>Single Prompt Agent</strong>：一個人做所有事，容易超載</li>
+              <li><strong>Multi-Prompt Agent</strong>：流水線，每個 Prompt 是一個專責環節</li>
+              <li><strong>關鍵洞見</strong>：分工後，每個節點都能用更小、更便宜的模型完成</li>
+            </ul>
+            <p>這是 CS 153 Week 1 講的「Orchestrator / Subagent」模式在真實場景的落地。</p>
+          </aside>
+        </section>
+
+      </div>
+
+      <!-- ===== TAB V: 思考題 ===== -->
+      <div class="tab-panel" id="tab-discuss">
+
+        <section class="chapter reveal">
+          <span class="roman">V</span>
+          <h2>Guided Discussion</h2>
+          <p class="lede">六道思考題，搭配每題的建議思考方向——幫助你把本講知識轉化為實際判斷力。</p>
+
+          <div class="discuss reveal">
+            <div class="discuss-q">Q1</div>
+            <p>Margot 強調「先建評估套件，再動 Prompt」。但在實際工作中，許多團隊沒有 Eval Suite。你認為，為什麼 Eval Suite 在 AI 工程中比在傳統軟體工程中更重要？你的組織或個人專案應該如何開始建立第一個 Eval？</p>
+            <details>
+              <summary>查看建議思考方向</summary>
+              <ul>
+                <li><strong>歷史對照</strong>：傳統軟體的行為是確定性的（輸入 → 輸出固定），AI 模型是機率性的。沒有 Eval，你無法區分「本次成功」和「每次都成功」。</li>
+                <li><strong>講者隱含論點</strong>：Margot 說「我們很少從頭寫 Prompt，更常是 debug 現有 Prompt」——Eval Suite 是 debug 的前提，沒有它你只能靠直覺。</li>
+                <li><strong>職涯啟發</strong>：能設計好 Eval Suite 的工程師，是 AI 時代真正稀缺的技能。設計 Eval 本身就是對「什麼叫成功」的清晰定義。</li>
+                <li><strong>反向思考</strong>：「我們的任務太複雜，難以量化評估」——Margot 用 Python 函數驗證排班規則，反駁了這個說法。複雜任務往往可以分解成可量化的規則。</li>
+              </ul>
+            </details>
+          </div>
+
+          <div class="discuss reveal">
+            <div class="discuss-q">Q2</div>
+            <p>「版本控制防禦性補丁」是 Margot 提出的一個有趣建議：記錄每條防禦規則的原因和添加時間。在你看來，這個做法在工程文化上面臨的最大阻力是什麼？如何在一個快速迭代的團隊中落地這個實踐？</p>
+            <details>
+              <summary>查看建議思考方向</summary>
+              <ul>
+                <li><strong>歷史對照</strong>：這和技術債（Technical Debt）的管理類似——當下的「快速修復」在未來成為維護負擔。差別在於 AI Prompt 的後果更隱蔽。</li>
+                <li><strong>講者隱含論點</strong>：Prompt 的版本控制不只是「記錄」，是在建立可以安全刪除補丁的條件。沒有記錄，你不敢刪；有了記錄，你知道何時可以刪。</li>
+                <li><strong>職涯啟發</strong>：把 Prompt 當作「程式碼」管理（git commit、PR review），而不是隨手修改的文件。這個思維轉換本身就是 AI 工程師的成熟標誌。</li>
+                <li><strong>反向思考</strong>：有沒有補丁是「永遠需要的」？那些應該被提升為正式的 Policy，而不只是 Patch。</li>
+              </ul>
+            </details>
+          </div>
+
+          <div class="discuss reveal">
+            <div class="discuss-q">Q3</div>
+            <p>「指令無法增加能力」是本演講最有力的洞見之一。請思考：除了「精確計算」，還有哪些常見任務是 LLM 在沒有工具的情況下本質上做不好的？你的專案中有哪些地方可能需要引入工具而不是更多提示詞？</p>
+            <details>
+              <summary>查看建議思考方向</summary>
+              <ul>
+                <li><strong>歷史對照</strong>：ChatGPT 早期版本在算術上的失敗案例廣為人知。後來的 Code Interpreter（Python 執行）和 Web Browsing 都是「給工具」的解法。</li>
+                <li><strong>講者隱含論點</strong>：LLM 的能力邊界是確定的，Prompt 無法突破——只有架構（Tool、RAG、Retrieval）才能擴展。</li>
+                <li><strong>職涯啟發</strong>：辨識「哪些任務需要工具」是 AI 工程師的核心判斷力。類比：知道什麼情況用 for loop、什麼情況用資料庫的判斷力。</li>
+                <li><strong>反向思考</strong>：給工具也有代價（延遲、成本、複雜性）。什麼情況下可以接受模型做「夠好但不精確」的計算？</li>
+              </ul>
+            </details>
+          </div>
+
+          <div class="discuss reveal">
+            <div class="discuss-q">Q4</div>
+            <p>Margot 指出「模型越聰明，越需要完整的 Trade-off 資訊」。這個觀察暗示了什麼？隨著模型能力持續提升，Prompt 的設計哲學將如何演變？你認為 2 年後的 Prompt 工程會和今天有多大不同？</p>
+            <details>
+              <summary>查看建議思考方向</summary>
+              <ul>
+                <li><strong>歷史對照</strong>：早期 ChatGPT（GPT-3.5）時代的 Prompt 技巧（few-shot、chain-of-thought）到 Claude 3.5 時代已基本過時。模型進化讓 Prompt 技巧的半衰期很短。</li>
+                <li><strong>講者隱含論點</strong>：未來的 Prompt 可能更像「目標設定」而非「步驟指令」——你告訴模型想要什麼、為什麼，讓模型自己找方法。</li>
+                <li><strong>職涯啟發</strong>：與其學記哪些 Prompt 技巧有效，不如理解模型的推理原理。後者的半衰期更長。</li>
+                <li><strong>反向思考</strong>：有些 Prompt 原則（XML 結構、Eval Suite）可能永遠有效，因為它們是「溝通清晰度」的問題，而非模型能力的問題。</li>
+              </ul>
+            </details>
+          </div>
+
+          <div class="discuss reveal">
+            <div class="discuss-q">Q5</div>
+            <p>Generate-Evaluate-Repair 迴圈的核心架構是「把複雜任務分解成多個簡單任務」。這和傳統軟體工程的哪些設計原則有相似之處？你認為 GER 迴圈的主要風險是什麼？什麼情況下反而不適合用 GER？</p>
+            <details>
+              <summary>查看建議思考方向</summary>
+              <ul>
+                <li><strong>歷史對照</strong>：類似 Unix 哲學「一個程式只做一件事，多個程式組合解決複雜問題」，也類似微服務架構的解耦思想。</li>
+                <li><strong>講者隱含論點</strong>：GER 的每個節點都「更容易測試和除錯」——這是分工的隱性好處，不只是性能優化。</li>
+                <li><strong>職涯啟發</strong>：學會識別「這個任務可以用 GER 解構」是 AI 系統設計的核心能力。這需要你先能清晰定義「什麼叫成功輸出」。</li>
+                <li><strong>反向思考</strong>：GER 增加了系統複雜度（三個 API 呼叫、錯誤處理、狀態傳遞）。對於簡單任務，一個 Prompt 就夠了。過度拆分也是一種浪費。</li>
+              </ul>
+            </details>
+          </div>
+
+          <div class="discuss reveal">
+            <div class="discuss-q">Q6</div>
+            <p>Margot 展示了「軟性約束可以在 Runtime 動態注入到 Evaluate Prompt」。這個能力對商業應用有什麼深遠的影響？你能想到三個真實場景，在那裡「Runtime 軟性約束」會比「硬編碼規則」帶來顯著的商業價值？</p>
+            <details>
+              <summary>查看建議思考方向</summary>
+              <ul>
+                <li><strong>歷史對照</strong>：傳統業務規則引擎（如 Drools、Camunda）需要 IT 部門修改和部署，週期長。GER 讓業務人員可以用自然語言即時調整規則。</li>
+                <li><strong>講者隱含論點</strong>：軟性約束是「人類判斷的延伸」——那些難以程式化的偏好、情境判斷、臨時需求。這正是 LLM 最擅長的領域。</li>
+                <li><strong>職涯啟發</strong>：能設計「可接受軟性約束的 Agent 架構」，讓業務人員自行調整，是一個極具商業價值的技能。</li>
+                <li><strong>反向思考</strong>：軟性約束也帶來風險——如果業務人員注入了互相矛盾的約束怎麼辦？系統應該如何處理衝突？</li>
+              </ul>
+            </details>
+          </div>
+
+          <h3>名詞速查表</h3>
+          <div class="ledger reveal">
+            <div class="ledger-row">
+              <div class="ledger-num">GER</div>
+              <div class="ledger-body"><strong>Generate-Evaluate-Repair</strong>：三節點代理迴圈。生成草稿 → LLM 評估違規 → 修復補丁。比單一超大 Prompt 更高效。</div>
+            </div>
+            <div class="ledger-row">
+              <div class="ledger-num">Eval</div>
+              <div class="ledger-body"><strong>Evaluation Suite</strong>：評估套件。包含控制案例、邊緣案例、邊界案例，用於量化 Prompt 改動的效果。</div>
+            </div>
+            <div class="ledger-row">
+              <div class="ledger-num">Stop Seq</div>
+              <div class="ledger-body"><strong>Stop Sequences</strong>：API 層的停止信號。偵測到特定字符後截斷輸出，確保格式一致性。</div>
+            </div>
+            <div class="ledger-row">
+              <div class="ledger-num">Proration</div>
+              <div class="ledger-body"><strong>按比例計費</strong>：月中升級方案時，依剩餘天數計算費用。需要精確計算，必須用 Tool 而非口頭指令。</div>
+            </div>
+            <div class="ledger-row">
+              <div class="ledger-num">Adaptive Thinking</div>
+              <div class="ledger-body">讓模型自決「需要思考多少」的模式。提升複雜推理正確率，但消耗 3× Token 和延遲。</div>
+            </div>
+            <div class="ledger-row">
+              <div class="ledger-num">Soft Constraint</div>
+              <div class="ledger-body"><strong>軟性約束</strong>：「盡量」而非「必須」的規則。GER 迴圈允許在 Runtime 動態注入，無需改程式碼。</div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+    </article>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="colophon">
+      <div class="colophon-col">
+        <h5>Conference</h5>
+        <p>Code with Claude London 2026</p>
+        <p>Anthropic Developer Conference</p>
+        <p>May 19–20, 2026 · London</p>
+      </div>
+      <div class="colophon-col">
+        <h5>This Issue</h5>
+        <p>No. 09 · Week 1 · Day 2 (Breakout)</p>
+        <p>Speaker: Margot Vanlar</p>
+        <p>Applied AI Engineer · Anthropic London</p>
+        <p>Topic: The Prompting Playbook</p>
+      </div>
+      <div class="colophon-col">
+        <h5>Format</h5>
+        <p>Transcript → 整理 → HTML</p>
+        <p>Design: The Claude Dispatch</p>
+        <p>Fraunces · Newsreader · JetBrains Mono</p>
+      </div>
+    </div>
+    <div class="colophon-bottom">
+      © The Claude Dispatch · Set in Fraunces, Newsreader &amp; JetBrains Mono · 13 primers · 3 stories · 6 guided questions
+    </div>
+  </footer>
+
+  <!-- Back to top -->
+  <button id="back-top" aria-label="Back to top">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="18 15 12 9 6 15"></polyline>
+    </svg>
+  </button>
+
+  <script>
+    // Progress bar
+    const progressBar = document.getElementById('progress-bar');
+    function updateProgress() {
+      const s = document.documentElement.scrollTop;
+      const h = document.documentElement.scrollHeight - window.innerHeight;
+      progressBar.style.width = (h > 0 ? (s / h) * 100 : 0) + '%';
+    }
+
+    // Cursor
+    const cursor = document.getElementById('cursor');
+    let cx = -100, cy = -100;
+    function moveCursor(e) {
+      cx = e.clientX; cy = e.clientY;
+      cursor.style.left = cx + 'px';
+      cursor.style.top = cy + 'px';
+    }
+    document.addEventListener('mousemove', moveCursor);
+    document.querySelectorAll('a, button, .stat-item, .duo-card, .hygiene-item, .pullquote, .ger-node, aside.primer, .story').forEach(el => {
+      el.addEventListener('mouseenter', () => document.body.classList.add('cursor-hover'));
+      el.addEventListener('mouseleave', () => document.body.classList.remove('cursor-hover'));
+    });
+
+    // Back to top
+    const backTop = document.getElementById('back-top');
+    backTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+    window.addEventListener('scroll', () => {
+      updateProgress();
+      backTop.classList.toggle('visible', window.scrollY > 600);
+    }, { passive: true });
+    updateProgress();
+
+    // Tabs
+    const tabs = document.querySelectorAll('.nav-tab');
+    const panels = document.querySelectorAll('.tab-panel');
+    const indicator = document.getElementById('tab-indicator');
+
+    function moveIndicator(tab) {
+      const rect = tab.getBoundingClientRect();
+      const navRect = document.getElementById('nav-tabs').getBoundingClientRect();
+      const scrollLeft = document.getElementById('nav-tabs').scrollLeft;
+      indicator.style.left = (rect.left - navRect.left + scrollLeft) + 'px';
+      indicator.style.width = rect.width + 'px';
+    }
+
+    function activateTab(tabEl) {
+      tabs.forEach(t => t.classList.remove('active'));
+      panels.forEach(p => p.classList.remove('active'));
+      tabEl.classList.add('active');
+      const id = tabEl.dataset.tab;
+      document.getElementById('tab-' + id).classList.add('active');
+      moveIndicator(tabEl);
+      // re-trigger reveals in new tab
+      document.querySelectorAll('#tab-' + id + ' .reveal').forEach(el => {
+        if (isVisible(el)) el.classList.add('in');
+      });
+    }
+
+    tabs.forEach(tab => tab.addEventListener('click', () => activateTab(tab)));
+
+    // Init indicator
+    setTimeout(() => moveIndicator(document.querySelector('.nav-tab.active')), 100);
+    window.addEventListener('resize', () => moveIndicator(document.querySelector('.nav-tab.active')));
+
+    // Scroll reveal
+    function isVisible(el) {
+      const r = el.getBoundingClientRect();
+      return r.top < window.innerHeight * 0.9 && r.bottom > 0;
+    }
+    function checkReveals() {
+      document.querySelectorAll('.reveal').forEach(el => {
+        if (isVisible(el)) el.classList.add('in');
+      });
+    }
+    window.addEventListener('scroll', checkReveals, { passive: true });
+    checkReveals();
+
+    // Bar animations (model compare)
+    function animateBars() {
+      const section = document.getElementById('compare-section');
+      if (!section) return;
+      const r = section.getBoundingClientRect();
+      if (r.top < window.innerHeight * 0.85) {
+        document.querySelectorAll('.compare-fill').forEach(bar => {
+          const w = bar.dataset.w || 0;
+          bar.style.width = w + '%';
+        });
+        window.removeEventListener('scroll', animateBars);
+      }
+    }
+    window.addEventListener('scroll', animateBars, { passive: true });
+    animateBars();
+
+    // Init all panels except active
+    document.querySelectorAll('#tab-overview .reveal').forEach(el => {
+      if (isVisible(el)) el.classList.add('in');
+    });
+  </script>
+<style>#home-btn{position:fixed;bottom:32px;left:32px;width:44px;height:44px;border-radius:50%;background:var(--cardinal,#8c1515);color:var(--paper,#efe8d6);display:flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:3px 3px 0 var(--ink,#1a1410);z-index:901;font-size:20px;transition:transform .2s;}#home-btn:hover{transform:translateY(-4px);}#home-btn::after{content:'';position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;color:var(--ink-faint,#7a6651);opacity:0;transition:opacity .2s;}#home-btn:hover::after{content:'HOME';opacity:1;}</style>
+<a id='home-btn' href='./index.html' title='Back to Index'>&#8962;</a></body>
+</html>

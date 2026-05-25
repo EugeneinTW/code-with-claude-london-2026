@@ -1,0 +1,922 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Running an AI-native Engineering Org — The Claude Dispatch · №24</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper:        #efe8d6;
+  --paper-deep:   #e4d9be;
+  --paper-edge:   #d6c89f;
+  --ink:          #1a1410;
+  --ink-soft:     #4a3a2b;
+  --ink-faint:    #7a6651;
+  --cardinal:     #8c1515;
+  --cardinal-dk:  #5e0e0e;
+  --cardinal-soft:#b34646;
+  --gold:         #b48729;
+  --gold-soft:    #d8b261;
+  --gold-bg:      #f7eccd;
+  --moss:         #586a3f;
+  --moss-bg:      #e6e6c9;
+  --rule:         rgba(26,20,16,0.14);
+  --rule-soft:    rgba(26,20,16,0.07);
+}
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+body { background:var(--paper); color:var(--ink); font-family:'Newsreader','Noto Serif TC',Georgia,serif; font-size:18px; line-height:1.72; overflow-x:hidden; }
+body::before { content:""; position:fixed; inset:0; pointer-events:none; z-index:999; background-image:radial-gradient(rgba(26,20,16,0.04) 1px, transparent 1px),radial-gradient(rgba(26,20,16,0.025) 1px, transparent 1px); background-size:3px 3px,7px 7px; background-position:0 0,1px 1px; opacity:.55; mix-blend-mode:multiply; }
+
+#progress-bar { position:fixed; top:0; left:0; height:3px; width:0%; background:linear-gradient(90deg,var(--cardinal),var(--gold)); z-index:1000; transition:width 0.1s linear; }
+#cursor { position:fixed; width:22px; height:22px; border-radius:50%; border:2px solid var(--cardinal); pointer-events:none; z-index:9998; transform:translate(-50%,-50%); transition:transform 0.15s ease,width 0.2s,height 0.2s; mix-blend-mode:multiply; }
+#cursor.big { width:52px; height:52px; }
+
+.masthead { background:var(--ink); color:var(--paper); text-align:center; padding:10px 32px; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; }
+.masthead span { color:var(--gold-soft); margin:0 8px; }
+
+.hero { border-bottom:2px solid var(--ink); padding:52px 0 44px; background:var(--paper-deep); }
+.hero .container { max-width:1080px; margin:0 auto; padding:0 32px; }
+.hero-grid { display:grid; grid-template-columns:160px 1fr; gap:40px; align-items:start; }
+.issue-stamp { font-family:'Fraunces',serif; font-size:72px; font-weight:700; line-height:1; color:var(--cardinal); transform:rotate(-4deg); white-space:nowrap; text-shadow:2px 2px 0 var(--paper),3px 3px 0 var(--cardinal-dk); display:flex; flex-direction:column; align-items:center; }
+.issue-stamp small { font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.2em; color:var(--gold); font-weight:700; margin-top:4px; }
+h1 { font-family:'Fraunces',serif; font-size:clamp(34px,4.6vw,58px); font-weight:800; line-height:1.1; color:var(--ink); margin-bottom:16px; }
+h1 em { font-style:italic; color:var(--cardinal); }
+.deck { font-family:'Newsreader',serif; font-size:21px; line-height:1.55; color:var(--ink-soft); max-width:760px; margin-bottom:20px; }
+.byline { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-faint); letter-spacing:0.12em; text-transform:uppercase; display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
+.byline-sep { color:var(--rule); }
+
+.stat-strip { background:var(--ink); color:var(--paper); display:flex; border-bottom:2px solid var(--gold); }
+.stat-item { flex:1; padding:22px 24px; border-right:1px solid rgba(239,232,214,0.12); cursor:default; position:relative; }
+.stat-item:last-child { border-right:none; }
+.stat-num { font-family:'Fraunces',serif; font-size:38px; font-weight:800; color:var(--gold-soft); line-height:1; display:block; }
+.stat-label { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:rgba(239,232,214,0.55); margin-top:6px; display:block; }
+.stat-tooltip { position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%) translateY(6px); background:var(--ink); color:var(--paper); border:1px solid var(--gold); padding:10px 14px; font-size:13px; font-family:'Newsreader',serif; width:220px; text-align:center; line-height:1.5; opacity:0; pointer-events:none; transition:all 0.2s ease; z-index:100; }
+.stat-tooltip::after { content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:var(--gold); }
+.stat-item:hover .stat-tooltip { opacity:1; transform:translateX(-50%) translateY(0); }
+
+.nav-wrap { position:sticky; top:0; z-index:200; background:var(--paper-deep); border-bottom:2px solid var(--ink); display:flex; align-items:center; padding:0 32px; overflow-x:auto; }
+.nav-wrap button { font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.1em; text-transform:uppercase; background:none; border:none; color:var(--ink-faint); padding:16px 20px; cursor:pointer; white-space:nowrap; transition:color 0.2s; position:relative; }
+.nav-wrap button:hover,.nav-wrap button.active { color:var(--ink); }
+.tab-indicator { position:absolute; bottom:0; height:2px; background:var(--cardinal); transition:left 0.3s cubic-bezier(.4,0,.2,1),width 0.3s cubic-bezier(.4,0,.2,1); }
+
+.container { max-width:1080px; margin:0 auto; padding:0 32px; }
+.tab-content { display:none; padding:60px 0; }
+.tab-content.active { display:block; }
+
+.chapter { position:relative; margin-bottom:72px; opacity:0; transform:translateY(22px); transition:opacity 0.6s ease,transform 0.6s ease; }
+.chapter.revealed { opacity:1; transform:translateY(0); }
+.roman { position:absolute; right:0; top:-16px; font-family:'Fraunces',serif; font-size:220px; font-weight:800; font-style:italic; color:var(--ink); opacity:0.045; line-height:1; pointer-events:none; z-index:0; user-select:none; }
+h2 { font-family:'Fraunces',serif; font-size:44px; font-weight:800; line-height:1.15; margin-bottom:28px; padding-left:20px; border-left:4px solid var(--cardinal); position:relative; z-index:1; }
+h3 { font-family:'Fraunces',serif; font-size:22px; font-weight:700; margin:32px 0 14px; color:var(--ink); }
+h4 { font-family:'Fraunces',serif; font-size:18px; font-weight:700; margin:20px 0 10px; color:var(--ink); }
+h5 { font-family:'Fraunces',serif; font-size:18px; font-weight:600; font-style:italic; margin-bottom:10px; }
+p { max-width:760px; color:var(--ink-soft); margin-bottom:18px; position:relative; z-index:1; }
+.lede { font-size:21px; color:var(--ink); font-weight:400; line-height:1.6; margin-bottom:28px; }
+
+.pullquote { max-width:820px; border-left:4px solid var(--cardinal); padding:24px 28px; margin:36px 0; background:var(--gold-bg); position:relative; z-index:1; }
+.pullquote p { font-size:20px; font-style:italic; color:var(--ink); max-width:100%; margin-bottom:8px; }
+.pullquote .zh { display:block; border-top:1px dashed var(--rule); padding-top:10px; margin-top:10px; font-size:15px; color:var(--ink-faint); font-style:normal; }
+.pullquote cite { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-faint); letter-spacing:0.1em; }
+
+aside.primer { background:var(--gold-bg); border:1px solid var(--paper-edge); border-left:4px solid var(--gold); padding:24px 28px; margin:32px 0; max-width:820px; position:relative; z-index:1; }
+.primer-tag { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:var(--gold); display:block; margin-bottom:8px; }
+aside.primer h5 { color:var(--ink); }
+aside.primer p { font-size:16px; max-width:100%; color:var(--ink-soft); }
+aside.primer ul { padding-left:20px; margin:10px 0; }
+aside.primer li { font-size:16px; color:var(--ink-soft); margin-bottom:6px; }
+
+.story { background:var(--paper-deep); border:1px solid var(--paper-edge); border-top:3px solid var(--cardinal); padding:28px 32px; margin:36px 0; max-width:820px; position:relative; z-index:1; }
+.story-tag { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:var(--cardinal); display:block; margin-bottom:10px; }
+.story h4 { font-style:italic; color:var(--ink); margin-top:0; }
+.story p { font-size:16px; max-width:100%; }
+.story blockquote { border-left:3px solid var(--cardinal-soft); padding:10px 16px; margin:14px 0; font-style:italic; color:var(--cardinal-dk); background:rgba(140,21,21,0.04); }
+
+.discuss { background:var(--moss-bg); border-left:4px solid var(--moss); padding:22px 28px; margin:24px 0; max-width:820px; position:relative; z-index:1; }
+.discuss p { font-size:16px; max-width:100%; color:var(--ink); font-weight:500; margin-bottom:10px; }
+.discuss details summary { font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.1em; color:var(--moss); cursor:pointer; text-transform:uppercase; padding:6px 0; }
+.discuss details ul { padding-left:20px; margin-top:10px; }
+.discuss details li { font-size:15px; color:var(--ink-soft); margin-bottom:8px; }
+
+.term { background:rgba(180,135,41,0.15); border-bottom:1px dashed var(--cardinal); cursor:help; position:relative; }
+.term::after { content:attr(data-def); position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); background:var(--ink); color:var(--paper); font-family:'Newsreader',serif; font-size:13px; line-height:1.5; padding:8px 12px; width:240px; text-align:center; opacity:0; pointer-events:none; transition:opacity 0.2s ease; z-index:500; white-space:normal; border-bottom:3px solid var(--cardinal); }
+.term:hover::after { opacity:1; }
+
+.duo { display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:820px; margin:28px 0; }
+.duo-card { background:var(--paper-deep); border:1px solid var(--paper-edge); padding:22px 24px; transition:transform 0.18s ease,box-shadow 0.18s ease; cursor:default; }
+.duo-card:hover { transform:translateY(-4px); box-shadow:4px 4px 0 var(--ink); }
+.duo-card h4 { font-size:16px; margin-bottom:8px; }
+.duo-card p { font-size:15px; max-width:100%; margin-bottom:0; }
+.duo-card .tag { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--cardinal); display:block; margin-bottom:6px; }
+
+.ledger { margin:28px 0; max-width:820px; }
+.ledger-item { display:flex; align-items:baseline; gap:16px; padding:14px 16px; border-bottom:1px solid var(--rule); position:relative; transition:padding-left 0.2s ease; cursor:default; }
+.ledger-item::before { content:''; position:absolute; left:0; top:0; bottom:0; width:0; background:var(--cardinal); transition:width 0.25s ease; }
+.ledger-item:hover { padding-left:28px; }
+.ledger-item:hover::before { width:3px; }
+.ledger-num { font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:rgba(26,20,16,0.25); min-width:28px; transition:color 0.2s ease; }
+.ledger-item:hover .ledger-num { color:var(--cardinal); }
+.ledger-text { font-size:16px; color:var(--ink-soft); line-height:1.55; }
+.ledger-text strong { color:var(--ink); }
+
+/* BOTTLENECK TIMELINE */
+.bottleneck-timeline { max-width:820px; margin:36px 0; }
+.bn-era { display:grid; grid-template-columns:120px 16px 1fr; gap:0 0; margin-bottom:0; align-items:start; }
+.bn-year { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-faint); padding:18px 12px 18px 0; text-align:right; }
+.bn-line { display:flex; flex-direction:column; align-items:center; padding-top:20px; }
+.bn-dot { width:16px; height:16px; border-radius:50%; background:var(--cardinal); border:3px solid var(--paper); box-shadow:0 0 0 2px var(--cardinal); flex-shrink:0; }
+.bn-dot.gold { background:var(--gold); box-shadow:0 0 0 2px var(--gold); }
+.bn-dot.moss { background:var(--moss); box-shadow:0 0 0 2px var(--moss); }
+.bn-connector { width:2px; flex:1; background:var(--rule); min-height:30px; }
+.bn-card { border:1px solid var(--paper-edge); background:var(--paper-deep); padding:16px 20px; margin:8px 0 0 16px; transition:transform 0.18s, box-shadow 0.18s; cursor:default; }
+.bn-card:hover { transform:translateX(4px); box-shadow:3px 3px 0 var(--ink); }
+.bn-card h4 { font-size:15px; margin:0 0 5px; }
+.bn-card p { font-size:14px; max-width:100%; margin-bottom:0; }
+.bn-tag { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--cardinal); display:inline-block; margin-bottom:5px; }
+.bn-tag.gold { color:var(--gold); }
+.bn-tag.moss { color:var(--moss); }
+
+/* NORM TABLE */
+.norm-grid { max-width:820px; margin:32px 0; display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.norm-card { padding:18px 20px; border:1px solid var(--paper-edge); background:var(--paper-deep); transition:transform 0.18s, box-shadow 0.18s; cursor:default; }
+.norm-card:hover { transform:translateY(-3px); box-shadow:3px 3px 0 var(--ink); }
+.norm-before { font-size:14px; color:var(--cardinal-soft); text-decoration:line-through; margin-bottom:6px; }
+.norm-after { font-size:15px; color:var(--moss); font-weight:600; }
+.norm-label { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; color:var(--ink-faint); text-transform:uppercase; margin-bottom:8px; display:block; }
+
+/* TEAM MAKEUP */
+.team-makeup { max-width:820px; margin:32px 0; display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.team-role { padding:24px 24px; border:2px solid var(--paper-edge); position:relative; transition:transform 0.18s, box-shadow 0.18s; cursor:default; }
+.team-role.r1 { border-top-color:var(--cardinal); }
+.team-role.r2 { border-top-color:var(--gold); }
+.team-role:hover { transform:translateY(-4px); box-shadow:4px 4px 0 var(--ink); }
+.role-icon { font-size:42px; display:block; margin-bottom:10px; line-height:1; }
+.role-title { font-family:'Fraunces',serif; font-size:20px; font-weight:800; margin-bottom:8px; }
+.role-desc { font-size:14px; color:var(--ink-soft); }
+.role-traits { margin-top:12px; display:flex; flex-wrap:wrap; gap:6px; }
+.trait { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.1em; background:var(--paper-edge); padding:3px 8px; color:var(--ink-faint); }
+
+/* NOISIEST WORKFLOW */
+.noise-exercise { max-width:820px; margin:36px 0; background:var(--paper-deep); border:2px solid var(--ink); padding:28px 32px; }
+.noise-exercise h4 { margin-bottom:16px; font-size:20px; }
+.noise-steps { display:flex; flex-direction:column; gap:0; }
+.noise-step { display:grid; grid-template-columns:40px 1fr; gap:0; border-bottom:1px solid var(--rule); padding:14px 0; }
+.noise-step:last-child { border-bottom:none; }
+.noise-n { font-family:'Fraunces',serif; font-size:32px; font-weight:800; color:var(--gold); line-height:1; }
+.noise-body h5 { font-style:normal; font-size:16px; margin-bottom:4px; padding-top:4px; }
+.noise-body p { font-size:15px; max-width:100%; margin-bottom:0; }
+
+/* STRATEGY STACK */
+.strategy-stack { max-width:820px; margin:32px 0; }
+.stack-item { display:grid; grid-template-columns:48px 1fr; gap:0; border:1px solid var(--paper-edge); margin-bottom:-1px; padding:18px 20px; transition:padding-left 0.2s ease,background 0.2s; cursor:default; position:relative; }
+.stack-item::before { content:''; position:absolute; left:0; top:0; bottom:0; width:0; background:var(--cardinal); transition:width 0.25s ease; }
+.stack-item:hover { padding-left:32px; background:var(--gold-bg); }
+.stack-item:hover::before { width:4px; }
+.stack-num { font-family:'Fraunces',serif; font-size:28px; font-weight:800; font-style:italic; color:rgba(26,20,16,0.15); line-height:1; transition:color 0.2s; }
+.stack-item:hover .stack-num { color:var(--cardinal); }
+.stack-body h4 { font-size:16px; margin:0 0 5px; }
+.stack-body p { font-size:15px; max-width:100%; margin-bottom:0; }
+
+/* METRIC CHART */
+.metric-block { max-width:820px; margin:32px 0; background:var(--paper-deep); border:1px solid var(--paper-edge); padding:24px 28px; }
+.metric-row { display:flex; align-items:center; gap:16px; margin-bottom:18px; padding-bottom:18px; border-bottom:1px solid var(--rule); }
+.metric-row:last-child { margin-bottom:0; padding-bottom:0; border-bottom:none; }
+.metric-arrow { font-size:32px; font-weight:800; width:40px; text-align:center; flex-shrink:0; }
+.metric-arrow.down { color:var(--moss); }
+.metric-arrow.up { color:var(--cardinal); }
+.metric-desc h4 { font-size:16px; margin:0 0 4px; }
+.metric-desc p { font-size:14px; max-width:100%; margin-bottom:0; }
+
+.colophon { background:var(--ink); color:var(--paper-deep); padding:56px 0 36px; border-top:3px solid var(--gold); }
+.colophon .container { max-width:1080px; margin:0 auto; padding:0 32px; }
+.colophon-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:48px; margin-bottom:40px; }
+.col-section h6 { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold-soft); margin-bottom:14px; }
+.col-section p { font-size:14px; line-height:1.7; color:rgba(239,232,214,0.65); max-width:100%; }
+.col-section strong { color:var(--paper-deep); }
+.colophon-rule { border:none; border-top:1px solid rgba(239,232,214,0.12); margin:0 0 20px; }
+.colophon-bottom { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.1em; color:rgba(239,232,214,0.35); text-align:center; }
+
+/* SERIES FINALE */
+.finale-banner { max-width:820px; margin:36px 0; padding:32px; background:var(--ink); color:var(--paper); text-align:center; position:relative; overflow:hidden; }
+.finale-banner::before { content:'FINALE'; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-12deg); font-family:'Fraunces',serif; font-size:120px; font-weight:800; color:rgba(239,232,214,0.04); white-space:nowrap; pointer-events:none; }
+.finale-banner h3 { font-family:'Fraunces',serif; font-size:28px; color:var(--gold-soft); margin-bottom:12px; }
+.finale-banner p { color:rgba(239,232,214,0.7); font-size:16px; max-width:100%; margin:0 auto; }
+
+#back-top { position:fixed; bottom:32px; right:32px; width:46px; height:46px; border-radius:50%; background:var(--cardinal); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--paper); font-size:20px; box-shadow:3px 3px 0 var(--ink); transition:transform 0.2s ease,box-shadow 0.2s ease; z-index:800; }
+#back-top:hover { transform:translateY(-4px); box-shadow:3px 7px 0 var(--ink); }
+
+@media(max-width:900px){
+  .hero-grid { grid-template-columns:1fr; gap:20px; }
+  .duo,.norm-grid,.team-makeup { grid-template-columns:1fr; }
+  .colophon-grid { grid-template-columns:1fr; gap:28px; }
+  .container { padding:0 22px; }
+  h2 { font-size:32px; }
+  .stat-strip { flex-wrap:wrap; }
+  .stat-item { min-width:50%; }
+  .bn-era { grid-template-columns:80px 16px 1fr; }
+}
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div id="cursor"></div>
+
+<header class="masthead">
+  THE CLAUDE DISPATCH
+  <span>·</span> CODE WITH CLAUDE LONDON 2026
+  <span>·</span> VOL. I · NO. 24
+  <span>·</span> DAY 2 · 20 MAY 2026
+  <span>·</span> SERIES FINALE
+</header>
+
+<section class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div class="issue-stamp">№24<small>FINALE</small></div>
+      <div>
+        <h1>Running an <em>AI-native</em> Engineering Org</h1>
+        <p class="deck">Fiona Fung（Anthropic Claude Code &amp; Co-work 工程與產品負責人）分享五個主題：瓶頸已轉移、哪些舊規範需要重寫、驗證的新重要性、用「骨子裡的感受」建立產品感，以及讓主管重新回到程式碼庫的組織設計。</p>
+        <div class="byline">
+          <span>Fiona Fung · Anthropic Head of Eng &amp; Product, Claude Code &amp; Co-work</span>
+          <span class="byline-sep">·</span>
+          <span>Code with Claude London 2026 · Day 2</span>
+          <span class="byline-sep">·</span>
+          <span>Talk 24 of 24 · Series Finale</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="stat-strip">
+  <div class="stat-item">
+    <span class="stat-num">100%</span>
+    <span class="stat-label">Claude 輔助提交率</span>
+    <div class="stat-tooltip">Fiona 表示在過去幾個月，Claude Code 團隊沒有見過任何一個不是 Claude 輔助的提交。</div>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">↓</span>
+    <span class="stat-label">Onboarding 建立時間</span>
+    <div class="stat-tooltip">新工程師完成第一個 PR 的時間持續下降——Claude 讓 Onboarding 不再令人望而生畏。</div>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">3×PR</span>
+    <span class="stat-label">爭論取代白板</span>
+    <div class="stat-tooltip">Fiona vs Boris 的技術爭論：生成 3 個 PR 版本來討論，而不是去白板前畫架構圖。</div>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">0</span>
+    <span class="stat-label">非 Claude 輔助提交</span>
+    <div class="stat-tooltip">Claude Code 團隊所有提交均為 Claude 共同創作——這是完全 Claude 化的工程文化的標誌。</div>
+  </div>
+</div>
+
+<nav class="nav-wrap" id="nav">
+  <button class="active" data-tab="0">I · 總覽</button>
+  <button data-tab="1">II · 瓶頸轉移</button>
+  <button data-tab="2">III · 驗證與程式碼所有權</button>
+  <button data-tab="3">IV · 組織文化</button>
+  <button data-tab="4">V · 思考題</button>
+  <div class="tab-indicator" id="tab-indicator"></div>
+</nav>
+
+<article>
+<div class="container">
+
+<!-- TAB I: 總覽 -->
+<div class="tab-content active" id="tab-0">
+  <section class="chapter">
+    <span class="roman">I</span>
+    <h2>過去有效的，現在不一定有效</h2>
+    <p class="lede">Fiona Fung 帶領著每天使用 Claude Code 打造 Claude Code 的團隊。她的演講核心是一個成長心態的宣言：情況已改變，不審計舊規範就是對團隊的傷害。</p>
+    <p>多年來，工程頻寬一直是最昂貴的資源。所有的流程——深入的規劃、嚴格的審查、謹慎的程式碼所有權——都是為了保護這個資源而設計的。現在，這個前提已經不成立了。</p>
+    <div class="pullquote">
+      <p><strong>"What worked for you in the past might not work anymore."</strong>
+      <span class="zh">「過去對你有效的方法，現在可能不再有效。」</span></p>
+      <cite>— Fiona Fung, Anthropic</cite>
+    </div>
+    <p>Fiona 的演講不只是關於工具——它是關於組織的成長心態。當瓶頸轉移，那些「理所當然」的流程就需要重新被質疑：它是否還符合其目的？</p>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 AI-native 工程組織</span>
+      <h5>什麼是「AI-native 工程組織」？</h5>
+      <p>不是「用 AI 輔助的普通工程團隊」，而是從根本上重新設計了假設的團隊——假設編碼不再是瓶頸，假設驗證是新的核心能力，假設每個人都應該每天使用自己打造的產品。</p>
+      <ul>
+        <li>普通團隊用 AI：加了一個 GitHub Copilot，流程其他不變</li>
+        <li>AI-native 團隊：重寫 Onboarding、規劃流程、程式碼審查、組織架構——一切都基於「Claude 在團隊裡」這個新前提</li>
+        <li>Fiona 的關鍵問題：「每個流程——它是否還符合其目的？如果不符合，殺掉它。」</li>
+      </ul>
+      <p>AI-native 是一種組織心態，不是一個工具清單。</p>
+    </aside>
+
+    <h3>10 個核心洞見</h3>
+    <div class="ledger">
+      <div class="ledger-item">
+        <span class="ledger-num">01</span>
+        <span class="ledger-text"><strong>瓶頸轉移</strong>：從「工程頻寬（Coding）」→ 雲端時代「建置流程」→ AI 時代「驗證、知識共享、維護」。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">02</span>
+        <span class="ledger-text"><strong>程式碼勝出（Code wins）</strong>：技術爭論不用白板——生成 3 個 PR 版本，讓程式碼本身說話。「建置便宜，爭論昂貴。」</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">03</span>
+        <span class="ledger-text"><strong>TDD 終於有趣了</strong>：以前寫測試像吃花椰菜，有了 Claude，TDD 的「稅賦」被拿掉了——測試驅動開發第一次變得令人享受。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">04</span>
+        <span class="ledger-text"><strong>Left Shift 驗證</strong>：增加吞吐量後，驗證必須更靠近源頭——自動化機制比等用戶遇到 Bug 更好，比我先遇到 Bug 更好。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">05</span>
+        <span class="ledger-text"><strong>程式碼是唯一事實來源</strong>：文件在高吞吐量時代更容易過期。把規格（Spec）簽入程式碼庫，讓程式碼成為 Single Source of Truth。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">06</span>
+        <span class="ledger-text"><strong>Ant food（螞蟻食物）</strong>：Anthropic 版的 Dogfooding。主管必須親自使用產品，才能「在骨子裡感受它」——不靠 Dashboard，靠體驗。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">07</span>
+        <span class="ledger-text"><strong>主管從 IC 開始</strong>：Claude Code 每位主管都從個人貢獻者（IC）做起。維持與程式碼庫的連結是保持產品洞察力的關鍵。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">08</span>
+        <span class="ledger-text"><strong>跨功能鴻溝由 Claude 填補</strong>：設計師用 Claude 直接做 UI 微調；工程師用 Claude 做內容設計——Claude 增強你較弱的領域。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">09</span>
+        <span class="ledger-text"><strong>明確允許殺死舊流程</strong>：流程不會自己消亡。組織需要明確的文化授權——「如果它不再符合目的，你可以殺掉它」。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">10</span>
+        <span class="ledger-text"><strong>自上而下 + 自下而上</strong>：全團隊必須做的「強迫函數」（頂層對齊）+ 各小組有自由 Claude 化自己的工作流（底層適應）並行。</span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- TAB II: 瓶頸轉移 -->
+<div class="tab-content" id="tab-1">
+  <section class="chapter">
+    <span class="roman">II</span>
+    <h2>瓶頸的歷史轉移</h2>
+    <p class="lede">Fiona 帶大家坐上時光機回到 2000 年代初期：那時沒有雲端，Visual Studio 的建置是一個佇列，一次只能合併 6 個 PR。每個時代都有它的瓶頸。現在到了 AI 時代。</p>
+
+    <div class="bottleneck-timeline">
+      <div class="bn-era">
+        <span class="bn-year">2000s<br>初期</span>
+        <div class="bn-line">
+          <div class="bn-dot"></div>
+          <div class="bn-connector"></div>
+        </div>
+        <div class="bn-card">
+          <span class="bn-tag">瓶頸</span>
+          <h4>建置流程（Build Pipeline）</h4>
+          <p>Visual Studio 建置佇列：一次合併 6 個 PR，測試失敗要找是哪個 PR 造成的。機房值班一週，一切圍繞著保護建置資源。</p>
+        </div>
+      </div>
+      <div class="bn-era">
+        <span class="bn-year">2010s<br>雲端時代</span>
+        <div class="bn-line">
+          <div class="bn-dot gold"></div>
+          <div class="bn-connector"></div>
+        </div>
+        <div class="bn-card">
+          <span class="bn-tag gold">瓶頸</span>
+          <h4>工程頻寬（Engineering Bandwidth）</h4>
+          <p>雲端解放了建置問題，但工程師時間成為最貴的資源。所有流程都是為了保護工程師：深入規劃、嚴格審查、謹慎的程式碼所有權。</p>
+        </div>
+      </div>
+      <div class="bn-era">
+        <span class="bn-year">2026<br>AI 時代</span>
+        <div class="bn-line">
+          <div class="bn-dot moss"></div>
+        </div>
+        <div class="bn-card">
+          <span class="bn-tag moss">新瓶頸</span>
+          <h4>驗證、知識共享、維護</h4>
+          <p>編碼不再是瓶頸。吞吐量大幅增加後，「它是否正確」比「能否寫出來」更重要。Verification、知識共享、維護成本是新挑戰。</p>
+        </div>
+      </div>
+    </div>
+
+    <h3>哪些舊規範需要重寫？</h3>
+    <div class="norm-grid">
+      <div class="norm-card">
+        <span class="norm-label">規劃（Planning）</span>
+        <div class="norm-before">深入設計文件 + 長時間規劃</div>
+        <div class="norm-after">→ 3 個 PR 版本代替白板爭論</div>
+      </div>
+      <div class="norm-card">
+        <span class="norm-label">程式碼審查（Code Review）</span>
+        <div class="norm-before">人工逐行審查所有變更</div>
+        <div class="norm-after">→ Claude 審查風格/Lint/規格偏離，人工專注高風險決策</div>
+      </div>
+      <div class="norm-card">
+        <span class="norm-label">Onboarding</span>
+        <div class="norm-before">一對一技術深潛，佔用同事大量時間</div>
+        <div class="norm-after">→ 和 Claude 做技術深潛，不佔任何人的時間</div>
+      </div>
+      <div class="norm-card">
+        <span class="norm-label">組織架構（Org Shape）</span>
+        <div class="norm-before">主管脫離程式碼庫，純管理角色</div>
+        <div class="norm-after">→ 每位主管從 IC 開始，直接對產品區域負責</div>
+      </div>
+      <div class="norm-card">
+        <span class="norm-label">知識共享</span>
+        <div class="norm-before">設計文件、Wiki 是知識庫</div>
+        <div class="norm-after">→ 程式碼是唯一事實來源，Spec 簽入 codebase</div>
+      </div>
+      <div class="norm-card">
+        <span class="norm-label">跨功能協作</span>
+        <div class="norm-before">設計師出紅線標注 → 等工程師有空做</div>
+        <div class="norm-after">→ 設計師用 Claude 直接做 UI 微調，閉環更快</div>
+      </div>
+    </div>
+
+    <div class="story">
+      <span class="story-tag">TDD 的頓悟時刻</span>
+      <h4>測試驅動開發的「稅賦」消失了</h4>
+      <p>Fiona 加入 Claude Code 時想嘗試 TDD（測試驅動開發）——先寫測試、確保它失敗、再修正 Bug。但她記得以前寫測試的感覺：</p>
+      <blockquote>「就像吃花椰菜——你知道它對你好，但它不是流程中最令人享受的部分。我總是很癢心，想趕快去建置產品。」</blockquote>
+      <p>有了 Claude，她先寫失敗的測試，讓 Claude 幫助修正 Bug，完成後測試自然存在了。</p>
+      <blockquote>「那第一次的體驗，TDD 實際上變得有趣得多、令人愉悅得多——它有點像是把 TDD 中的『稅賦』給拿掉了。這對我來說是一個很大的 Aha moment。」</blockquote>
+      <p>教訓：不只是速度更快，而是高品質工程實踐的「心理負擔」大幅降低——原本覺得吃力才能做到的好習慣，現在變成自然而然的事。</p>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 TDD</span>
+      <h5>什麼是 TDD（測試驅動開發）？</h5>
+      <p>先寫測試（先讓它失敗），再寫代碼讓測試通過——不是先寫代碼再補測試。順序是：紅（失敗）→ 綠（通過）→ 重構。</p>
+      <ul>
+        <li>好處：測試反映真實需求，而不是為了通過而寫的假測試</li>
+        <li>以前的問題：需要額外的時間和紀律——「稅賦」很高</li>
+        <li>現在：Claude 幫你生成測試框架，TDD 的摩擦力降到幾乎為零</li>
+      </ul>
+      <p>Fiona 的洞見：Claude 不只讓你寫得更快，它讓「做對的事」變得更容易。</p>
+    </aside>
+
+    <div class="pullquote">
+      <p><strong>"In technical debate, code wins. Build is cheap, argument is expensive."</strong>
+      <span class="zh">「在技術爭論中，程式碼勝出。建置很便宜，爭論很昂貴。」</span></p>
+      <cite>— Fiona Fung</cite>
+    </div>
+
+    <div class="story">
+      <span class="story-tag">技術爭論新範式</span>
+      <h4>Fiona vs Boris：三個 PR 取代白板</h4>
+      <p>Fiona 在 Onboarding 期間想做一些程式碼重構。她和 Boris（團隊工程師）對方法有幾次爭論。</p>
+      <blockquote>「在過去，我差點就說『Boris，我們去會議室用白板畫出來吧。』但我心想：等等，有了 Claude，我可以生成三個不同版本的 PR。」</blockquote>
+      <p>她生成了三個不同重構方案的 PR，不是為了看程式碼如何實作，而是要看對整體架構的影響。這三個 PR 成為她和 Boris 進行技術討論的素材——比白板更具體、更可執行、更可以直接 merge 其中一個。</p>
+      <p>這個故事的核心：<strong>在 AI 時代，「先做出來再討論」比「先討論再做」更有效率。</strong>建置成本下降後，原型（Prototype）和 PR 取代了設計文件和白板作為技術討論的主要媒介。</p>
+    </div>
+  </section>
+</div>
+
+<!-- TAB III: 驗證與程式碼所有權 -->
+<div class="tab-content" id="tab-2">
+  <section class="chapter">
+    <span class="roman">III</span>
+    <h2>Verification：新時代的核心能力</h2>
+    <p class="lede">當吞吐量大幅提升，每個變更都需要更高的驗證信心。Left Shift 是關鍵——讓自動化機制在更靠近源頭的地方抓住問題，而不是等到用戶回報。</p>
+    <p>Fiona 說：「當我聽到客戶遇到 Bug，感覺真的很糟糕。我總是想著：我真希望我們能先抓到它。但你知道有什麼比我先遇到 Bug 更好的嗎？就是我們有自動化機制在線，在更接近源頭的地方就抓住它。」</p>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 Shift Left</span>
+      <h5>什麼是「Left Shift」（左移）？</h5>
+      <p>想像一條時間軸，左邊是「寫程式碼」，右邊是「用戶回報 Bug」。Left Shift 就是把「發現問題」的時機從右邊的（用戶遇到）移到左邊（寫程式碼時）。</p>
+      <ul>
+        <li>最右邊（最糟）：用戶在生產環境遇到 Bug → 最貴，已造成傷害</li>
+        <li>中間：工程師在 Code Review 發現 → 還可以，但有浪費</li>
+        <li>最左邊（最好）：自動化在提交前就抓住 → 最便宜，問題最小</li>
+      </ul>
+      <p>AI 時代的 Shift Left：不只是自動測試，更是讓 Claude 在提交前驗證規格是否偏離（Spec Drift Detection）。</p>
+    </aside>
+
+    <div class="strategy-stack">
+      <div class="stack-item">
+        <span class="stack-num">I</span>
+        <div class="stack-body">
+          <h4>Claude 程式碼審查 — 擅長的領域</h4>
+          <p>風格（Style）、Lint、明顯的 Bug、規格偏離（Spec Drift）——把規格簽入程式碼庫，Claude 能自動驗證實作是否符合規格。</p>
+        </div>
+      </div>
+      <div class="stack-item">
+        <span class="stack-num">II</span>
+        <div class="stack-body">
+          <h4>人類在流程中 — 不可替代的領域</h4>
+          <p>法律審查、風險承受度判斷、信任邊界評估、產品感與品味（Taste）——這些需要人類的上下文理解和價值判斷。</p>
+        </div>
+      </div>
+      <div class="stack-item">
+        <span class="stack-num">III</span>
+        <div class="stack-body">
+          <h4>自動化早晨常規（Morning Routine）</h4>
+          <p>Fiona 的做法：每天早上喝咖啡時，自動整合所有回饋管道（用戶回饋、App Store 評論等），Claude 協助識別主題和趨勢。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="story">
+      <span class="story-tag">產品感 × 人類審查</span>
+      <h4>把 Claude 變成花生先生：設計師的眼睛</h4>
+      <p>去年 12 月，Fiona 想給 Claude CLI 加節慶主題——把 Claude 的 ASCII 藝術做成一個雪人。她做出了範例，然後去問設計師意見。</p>
+      <blockquote>「設計師說：『不，這看起來完全不像雪人，你把 Claude 變成花生先生了。』」</blockquote>
+      <p>花生先生（Mr. Peanut）是美國花生品牌的吉祥物——一個穿著燕尾服的花生人偶。Fiona 沉默了一秒，然後說：「天哪，完全沒錯。我以為他是雪人，但你是對的。」</p>
+      <p>這個故事的意義：<strong>產品感（Product Sense）和美學品味（Taste）是人類在 AI 時代程式碼審查中最不可替代的貢獻。</strong>Claude 無法感知「這看起來像花生先生而不是雪人」——這需要人類對文化語境的理解。</p>
+    </div>
+
+    <h3>知識共享：程式碼作為單一事實來源</h3>
+    <p>傳統上，設計文件和 Wiki 是知識庫。但在 AI 時代，高吞吐量讓這些文件更容易過期——因為它們不在「更新迴圈」裡。</p>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 Source of Truth</span>
+      <h5>為什麼「程式碼是唯一事實來源」？</h5>
+      <p>想像一本菜譜（設計文件）和廚師實際做的菜（程式碼）——如果兩者不一致，你要相信哪個？廚房裡的實際做法，不是過期的菜譜。</p>
+      <ul>
+        <li>設計文件的問題：很少有人記得在改程式碼後同步更新文件 → 文件很快過期</li>
+        <li>程式碼的優勢：任何人都可以跑它、Claude 可以讀它、它永遠是最新的</li>
+        <li>Fiona 的做法：把「規格（Spec）」寫成可執行的程式碼或測試，簽入 codebase → 規格自動保持更新</li>
+      </ul>
+      <p>在 Claude Code 團隊，如果有人問技術問題，Fiona 說：「這是個好問題，我們去問 Claude」——而不是「去看文件」。</p>
+    </aside>
+
+    <div class="pullquote">
+      <p><strong>"Code is our single source of truth. No matter what your source of truth is, turn it into a skill and check it into the codebase — because then you can actually keep it updated."</strong>
+      <span class="zh">「程式碼是我們的唯一事實來源。不論你的事實來源是什麼，把它變成一個技能並簽入程式碼庫——因為這樣你才能真正保持它的更新。」</span></p>
+      <cite>— Fiona Fung</cite>
+    </div>
+  </section>
+</div>
+
+<!-- TAB IV: 組織文化 -->
+<div class="tab-content" id="tab-3">
+  <section class="chapter">
+    <span class="roman">IV</span>
+    <h2>Ant Food：在骨子裡感受產品</h2>
+    <p class="lede">Anthropic 版的 Dogfooding 叫「Ant food（螞蟻食物）」。Fiona 的核心主張：產品感不是來自儀表板，而是來自親身使用——讓決策者「在骨子裡感受到產品」。</p>
+    <div class="pullquote">
+      <p><strong>"Most of the time, anytime I join a new team, that's one of the first things I do — dogfooding the product to make sure I understand it. This way you really start feeling your product in your bones."</strong>
+      <span class="zh">「大多數時候，每當我加入新團隊，這是我首先做的事情之一——內部試用產品以確保我理解它。透過這種方式，你真的開始在骨子裡感受到你的產品。」</span></p>
+      <cite>— Fiona Fung</cite>
+    </div>
+
+    <div class="story">
+      <span class="story-tag">小企業 Onboarding 田野研究</span>
+      <h4>餐廳老闆、Claude for Small Business 與謙卑的教訓</h4>
+      <p>Fiona 對小企業有個人熱情。Anthropic 宣布 Claude for Small Business 後，她親自拜訪在舊金山開餐廳的朋友，引導他們使用 Co-work。</p>
+      <blockquote>「我得到了如此寶貴的回饋。看到我們在引導流程中，其實有那麼多事情是我們可以做得更好的，這真的讓人感到謙卑。」</blockquote>
+      <p>這就是「在骨子裡感受產品」的意義：不靠 Dashboard 數字，不靠 PowerPoint，而是看著真實用戶——一個餐廳老闆，不是工程師——試圖使用你的產品，感受他們的困惑和摩擦。這種體驗是任何指標都無法替代的。</p>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 Dogfooding / Ant food</span>
+      <h5>什麼是 Dogfooding？</h5>
+      <p>「吃自己的狗糧」——讓自己的團隊成為自己產品的用戶。Google 工程師用 Google Search，Apple 工程師用 iPhone，Anthropic 工程師用 Claude Code 開發 Claude Code。</p>
+      <ul>
+        <li>目的 1：第一手感受產品的痛點，比任何用戶回饋都直接</li>
+        <li>目的 2：讓主管「有資格」做決策——因為他們親身體驗過，不是靠數字猜測</li>
+        <li>Anthropic 的版本：「Ant food」（螞蟻食物），因為 Anthropic 的英文縮寫是 Ant</li>
+      </ul>
+      <p>Fiona 說：「否則，一段時間後你可能發現自己做出的產品決策全都是基於指標、儀表板或 PowerPoint。」這是對脫離現實的管理層的最嚴厲批評。</p>
+    </aside>
+
+    <h3>主管從 IC 開始：技術連結的強迫函數</h3>
+    <p>Fiona 在加入 Claude Code 後，首先改變的事情之一就是組織架構：所有主管都從個人貢獻者（Individual Contributor）開始做起。</p>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 IC vs Manager</span>
+      <h5>什麼是 IC（Individual Contributor）？</h5>
+      <p>IC = 個人貢獻者，就是親自寫程式碼、做設計、做工程的人。Manager 是帶領 IC 的人，但通常隨著管理職責增加，逐漸脫離實際工程工作。</p>
+      <ul>
+        <li>傳統觀點：主管應該管理，IC 應該執行——角色分明</li>
+        <li>Fiona 的觀點：主管如果完全脫離程式碼庫，決策容易流於表面，失去對產品的真實感受</li>
+        <li>Claude Code 的做法：每位主管從 IC 開始，有時間建立技術直覺，再承擔管理責任</li>
+      </ul>
+      <p>另一個好處：主管重新進入程式碼庫，不再需要佔用工程師的時間——有 Claude 可以回答所有技術問題。</p>
+    </aside>
+
+    <h3>兩種核心人才輪廓</h3>
+    <p>當 Claude 增強了所有人的能力，角色界線模糊後，Fiona 的團隊招募專注於兩種人才：</p>
+    <div class="team-makeup">
+      <div class="team-role r1">
+        <span class="role-icon">🎨</span>
+        <div class="role-title">Creative Builders<br>with Product Sense</div>
+        <div class="role-desc">具有產品感的創意建置者——能快速迭代原型、對用戶體驗有直覺、願意在骨子裡感受產品。</div>
+        <div class="role-traits">
+          <span class="trait">快速迭代</span>
+          <span class="trait">用戶直覺</span>
+          <span class="trait">跨功能</span>
+          <span class="trait">原型優先</span>
+        </div>
+      </div>
+      <div class="team-role r2">
+        <span class="role-icon">⚙️</span>
+        <div class="role-title">Deep System<br>Expertise</div>
+        <div class="role-desc">具備深厚系統專業知識——能確保「信任但要驗證」，在 AI 高吞吐量時代守住品質和安全的底線。</div>
+        <div class="role-traits">
+          <span class="trait">系統設計</span>
+          <span class="trait">安全邊界</span>
+          <span class="trait">驗證機制</span>
+          <span class="trait">深度調試</span>
+        </div>
+      </div>
+    </div>
+
+    <h3>組織推行框架：三個必做 + 自下而上適應</h3>
+    <div class="strategy-stack">
+      <div class="stack-item">
+        <span class="stack-num">必</span>
+        <div class="stack-body">
+          <h4>每位團隊成員每天使用 Claude Code &amp; Co-work</h4>
+          <p>不是選擇性的。親自使用自己打造的產品是保持產品感的強迫函數。</p>
+        </div>
+      </div>
+      <div class="stack-item">
+        <span class="stack-num">必</span>
+        <div class="stack-body">
+          <h4>Claude-ify Everything（能 Claude 化的都 Claude 化）</h4>
+          <p>每次問自己：「有什麼比我做更好？Claude 能幫我做嗎？」釋放頻寬給更高價值的工作。</p>
+        </div>
+      </div>
+      <div class="stack-item">
+        <span class="stack-num">必</span>
+        <div class="stack-body">
+          <h4>明確允許殺死舊流程</h4>
+          <p>團隊有文化授權去質疑和終止不再有效的流程，即使是幾個月前剛制定的規範也不例外。</p>
+        </div>
+      </div>
+    </div>
+
+    <h3>成效指標</h3>
+    <div class="metric-block">
+      <h4 style="margin-bottom:20px;">AI-native 組織的可觀察訊號</h4>
+      <div class="metric-row">
+        <div class="metric-arrow down">↓</div>
+        <div class="metric-desc">
+          <h4>Onboarding Ramp-up Time（建立時間）</h4>
+          <p>新工程師完成第一個 PR 的時間持續下降。Claude 讓技術深潛不再需要佔用同事時間，新人可以直接問 Claude 理解系統。</p>
+        </div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-arrow down">↓</div>
+        <div class="metric-desc">
+          <h4>PR Cycle Time（按階段拆解分析）</h4>
+          <p>不要只看端到端——分解成各個漏斗階段。如果 PR cycle time 沒下降，可能是建置/CI 系統成了新瓶頸，而不是 AI 沒效果。</p>
+        </div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-arrow up">↑</div>
+        <div class="metric-desc">
+          <h4>Claude-assisted Commits（Claude 輔助提交率）</h4>
+          <p>現在接近 100%——幾乎每個提交都是 Claude 共同創作的。這是文化轉型成功的最直接訊號。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- TAB V: 思考題 -->
+<div class="tab-content" id="tab-4">
+  <section class="chapter">
+    <span class="roman">V</span>
+    <h2>思考題 · 六個值得帶回團隊的問題</h2>
+    <p class="lede">Fiona 用一個「帶回家練習」結束演講：「挑出你最嘈雜的工作流程，問自己它是否還符合其目的，然後一步一步地去執行。」這六個問題是更深層的延伸。</p>
+
+    <div class="noise-exercise">
+      <h4>「最嘈雜工作流程」練習框架</h4>
+      <div class="noise-steps">
+        <div class="noise-step">
+          <span class="noise-n">1</span>
+          <div class="noise-body">
+            <h5>識別（Identify）</h5>
+            <p>你現在最耗時、最貴、大家最不享受的工作流程或會議是哪個？想想那個每週有 15 個人參加、大家都在用筆電的會議。</p>
+          </div>
+        </div>
+        <div class="noise-step">
+          <span class="noise-n">2</span>
+          <div class="noise-body">
+            <h5>審計（Audit）</h5>
+            <p>這個流程最初是為了解決什麼問題？它現在還在解決那個問題嗎？如果原來的問題已經消失了，這個流程是否還有存在的必要？</p>
+          </div>
+        </div>
+        <div class="noise-step">
+          <span class="noise-n">3</span>
+          <div class="noise-body">
+            <h5>Claude 化（Claude-ify）</h5>
+            <p>這個流程的哪些部分可以由 Claude 完成或輔助完成？從一個小部分開始，一步一步地去執行。不要試圖一次革命所有流程。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="discuss" data-q="Q1">
+      <p>Q1 · Fiona 說「過去有效的，現在不一定有效」——當工程頻寬不再是瓶頸，所有圍繞著保護它而設計的流程都需要重審。你的團隊現在有哪些「悄悄停止運作」的流程？最後一次有人認真審計這些流程是什麼時候？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>歷史對照：</strong>Fiona 舉了她待過一個擁有「許多層 SLA」的團隊——P0 Bug SLA、事件回應 SLA——堆積到工程師都不知道應該先做哪個。SLA 的初衷是保護客戶，但過多的 SLA 變成內部協調負擔，反而傷害客戶體驗。</li>
+          <li><strong>講者隱含論點：</strong>Fiona 說「流程不會自己死去」——它需要主動的審計文化和明確的終止授權。「允許殺死舊流程」是一種文化設計，不是自然發生的。</li>
+          <li><strong>職涯啟發：</strong>能夠識別「這個流程的存在是為了解決哪個已不再存在的問題」的工程師/主管，在組織轉型中有巨大價值。這需要同時理解歷史和當前現實。</li>
+          <li><strong>反向思考：</strong>「殺死舊流程」有風險——它可能在解決你沒有意識到的問題。如何設計一個「安全試驗：暫停這個流程 4 週，看看有什麼崩潰」的機制？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss" data-q="Q2">
+      <p>Q2 · Fiona 的 TDD 頓悟：有了 Claude，「吃花椰菜」的稅賦消失了，TDD 第一次變得令人享受。在你自己的工程實踐中，有哪些你知道「對的做法」但因為摩擦力太高而常常跳過的事？Claude 有可能讓這些事情變得自然？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>量化參考：</strong>研究顯示，TDD 能減少 40-80% 的缺陷，但採用率一直很低——因為「先寫測試」的心理負擔太高。如果 Claude 讓 TDD 的摩擦力降到接近零，TDD 採用率的理論上限是什麼？</li>
+          <li><strong>講者隱含論點：</strong>Fiona 的頓悟不只是關於速度，而是關於「正確的工程實踐變得可負擔」。這暗示 Claude 的最大影響之一，是讓「最佳實踐」從「知道但不做」變成「自然而然做」。</li>
+          <li><strong>職涯啟發：</strong>有一份「你知道但因為太麻煩而跳過」的工程實踐清單，然後系統性地用 Claude 逐一試驗降低摩擦力——這是非常值得做的個人工程改善實驗。</li>
+          <li><strong>反向思考：</strong>如果 Claude 讓「吃花椰菜」變得容易，是否也有風險讓某些應該有摩擦力的決策（如刪除生產資料庫）變得太容易了？「正確的摩擦力」在哪裡？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss" data-q="Q3">
+      <p>Q3 · Fiona 說「程式碼是唯一事實來源」，並建議把規格（Spec）簽入程式碼庫。但現實中很多組織的「事實來源」是分散的——Confluence、Notion、Slack、口頭約定。你的組織現在的「事實來源」在哪裡？將它遷移到程式碼庫需要面對什麼阻力？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>歷史對照：</strong>敏捷宣言（2001 年）其中一條是「可運作的軟體勝過詳盡的文件（Working software over comprehensive documentation）」——Fiona 的「程式碼即事實來源」是這個原則在 AI 時代的延伸。25 年後，AI 讓這個原則更容易實踐。</li>
+          <li><strong>講者隱含論點：</strong>Fiona 說高吞吐量讓「不在更新迴圈裡的文件更容易過期」——這意味著以前「花時間維護文件」在低吞吐量時代還可以，但現在已經跟不上。</li>
+          <li><strong>職涯啟發：</strong>設計「讓規格可執行、可測試、可自動驗證偏離」的架構是一個高價值技能。能把「業務邏輯」轉化為「可測試的程式碼規則」的工程師，在 AI 時代很稀缺。</li>
+          <li><strong>反向思考：</strong>不是所有知識都能轉化為程式碼——架構決策背後的「為什麼」、設計哲學、商業背景通常不能。程式碼告訴你「做什麼」，但不告訴你「為什麼」。如何在「程式碼即事實」和「保留決策上下文」之間取得平衡？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss" data-q="Q4">
+      <p>Q4 · 花生先生事件：Claude 無法判斷 ASCII 雪人「看起來像花生先生」，需要設計師的文化語境和美學品味。在你的工作中，哪些任務需要這種「人類才有的文化/美學/上下文判斷」？AI 的邊界在哪裡？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>歷史對照：</strong>自動駕駛能辨識紅燈，但難以辨識「這個十字路口的人是在等待還是要過馬路」——因為這需要理解人類的隱含意圖和社會脈絡。AI 的能力邊界通常在「顯式規則」和「隱含文化脈絡」之間。</li>
+          <li><strong>講者隱含論點：</strong>Fiona 說「人類的產品感和品味」是程式碼審查中不可替代的，並且用「花生先生」這個故事來說明這個不可替代性不是抽象的，而是非常具體的。</li>
+          <li><strong>職涯啟發：</strong>識別哪些工作需要「文化語境 + 美學判斷 + 隱含人類理解」，刻意培養這些能力——這是 AI 無法短期取代的人類競爭優勢。設計師的「品味」是護城河。</li>
+          <li><strong>反向思考：</strong>隨著 AI 接觸更多人類文化數據，它的文化語境理解能力也在提升。「花生先生問題」在三年後的 Claude 版本中還會是問題嗎？人類的「不可替代優勢邊界」本身也在移動。</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss" data-q="Q5">
+      <p>Q5 · Fiona 主張每位主管都應該從 IC 做起，直接進入程式碼庫。但在許多組織中，「主管親自寫程式碼」被認為是「不信任工程師」或「微管理」的訊號。你如何區分「保持技術連結」和「過度介入」？這條線在哪裡？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>歷史對照：</strong>Amazon Jeff Bezos 在 Amazon 初期親自寫程式碼，但隨著公司增長必須過渡到純管理。另一方面，Linus Torvalds 繼續參與 Linux kernel 的技術決策，而不只是管理。不同規模和類型的組織有不同的答案。</li>
+          <li><strong>講者隱含論點：</strong>Fiona 強調的是「IC 開始再過渡到管理」，而不是「永遠既是 IC 又是 Manager」——目的是讓主管有足夠的「肌肉記憶」和技術直覺，而不是永遠自己做工程。</li>
+          <li><strong>職涯啟發：</strong>「技術連結」和「微管理」的區別在於：技術連結是為了建立判斷力，微管理是控制工程師的決策。前者增加對話的深度，後者減少工程師的自主性。</li>
+          <li><strong>反向思考：</strong>如果 Claude 讓主管可以更輕鬆地「重新進入程式碼庫」，是否也帶來了主管「對技術過度自信」的風險？工程師的實際深度和主管的 Claude 輔助深度之間，有多大的差距？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss" data-q="Q6">
+      <p>Q6 · Fiona 的演講是整個 Code with Claude London 2026 的最後一場，她帶來的訊息是「組織要保持成長心態，不斷審視舊規範」。回顧這兩天 24 場演講，哪一個觀點最讓你感到「我需要改變我目前的做法」？你打算明天做什麼不同的事？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>歷史對照：</strong>每一次重大技術轉型（網際網路、雲端、智慧手機）後，「最快適應的組織」不一定是最大的，而是最願意重新質疑自己假設的。這兩天的演講集體指向一個方向：AI 不是工具升級，而是假設系統升級。</li>
+          <li><strong>講者隱含論點：</strong>Fiona 的最後訊息是「變化的速度在加快，成長心態不是選擇，而是生存要求」——這也是整個 Code with Claude London 的隱含主題。</li>
+          <li><strong>職涯啟發：</strong>從 24 場演講中，每個人應該識別出 1-3 個具體的、可立即採取的行動——不是「我要更多使用 AI」這種模糊目標，而是「明天我要做 X」的具體行動計劃。</li>
+          <li><strong>反向思考：</strong>Fiona 說「不要只看端到端指標，要把它拆解成各個漏斗階段」。你現在對自己效率的衡量方式，是否存在同樣的盲點——你在衡量的指標，是否真的反映了你想提升的東西？</li>
+        </ul>
+      </details>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 名詞速查</span>
+      <h5>本場演講關鍵術語</h5>
+      <ul>
+        <li><strong>Bottleneck（瓶頸）</strong>：限制整個系統吞吐量的最薄弱環節——當它改變，整個組織的最佳策略也改變</li>
+        <li><strong>TDD（Test-Driven Development）</strong>：先寫測試、確保失敗、再寫代碼讓測試通過的開發方式</li>
+        <li><strong>Shift Left（左移）</strong>：把問題發現的時機向「源頭」移動，越早發現越便宜</li>
+        <li><strong>Spec Drift（規格偏離）</strong>：實作隨著時間偏離了原始設計規格，而沒有人注意到</li>
+        <li><strong>Ant food</strong>：Anthropic 版的 Dogfooding，讓自己的團隊使用自己的產品</li>
+        <li><strong>Product Sense（產品感）</strong>：對產品應該如何工作的直覺，來自大量使用和觀察用戶</li>
+        <li><strong>IC（Individual Contributor）</strong>：個人貢獻者，親自做工程/設計工作，非管理角色</li>
+        <li><strong>Source of Truth</strong>：唯一正確的、最新的資訊來源，其他地方的記錄都以它為準</li>
+        <li><strong>Forcing Function（強迫函數）</strong>：讓某個行為不得不發生的機制或結構</li>
+      </ul>
+    </aside>
+
+    <div class="finale-banner">
+      <h3>Code with Claude London 2026 · 完結</h3>
+      <p>24 場演講，涵蓋 Anthropic 最前沿的 AI 工程實踐、產品設計哲學、雲端整合策略與組織文化轉型。從 Ben Hamner 的 AI 工程師生產力革命，到 Fiona Fung 的 AI-native 組織設計——這是一份時代切片，記錄了 2026 年 5 月人類與 AI 協作的最前沿思考。</p>
+    </div>
+  </section>
+</div>
+
+</div><!-- container -->
+</article>
+
+<footer class="colophon">
+  <div class="container">
+    <div class="colophon-grid">
+      <div class="col-section">
+        <h6>Conference</h6>
+        <p><strong>Code with Claude London 2026</strong><br>
+        Anthropic Developer Conference<br>
+        May 19–20, 2026 · London<br>
+        Anthropic</p>
+      </div>
+      <div class="col-section">
+        <h6>This Talk · Series Finale</h6>
+        <p><strong>Talk 24 of 24 · Day 2</strong><br>
+        Running an AI-native Engineering Org<br>
+        Fiona Fung · Anthropic<br>
+        Head of Eng &amp; Product, Claude Code &amp; Co-work</p>
+      </div>
+      <div class="col-section">
+        <h6>This Issue</h6>
+        <p>13 primers · 3 stories<br>
+        6 guided questions · 5 themes<br>
+        3 interactive visuals<br>
+        Bottleneck · Norms · Culture</p>
+      </div>
+    </div>
+    <hr class="colophon-rule">
+    <p class="colophon-bottom">© The Claude Dispatch · Set in Fraunces, Newsreader &amp; JetBrains Mono · Vol. I Complete · Talks 06–24 · Code with Claude London 2026</p>
+  </div>
+</footer>
+
+<button id="back-top" title="回到頂部">↑</button>
+
+<script>
+const pb = document.getElementById('progress-bar');
+document.addEventListener('scroll', () => {
+  const h = document.documentElement;
+  pb.style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%';
+});
+
+const cursor = document.getElementById('cursor');
+if ('ontouchstart' in window) {
+  cursor.style.display = 'none';
+} else {
+  document.addEventListener('mousemove', e => {
+    cursor.style.left = e.clientX + 'px';
+    cursor.style.top = e.clientY + 'px';
+  });
+  document.querySelectorAll('a,button,.duo-card,.ledger-item,.stack-item,.bn-card,.norm-card,.team-role,.noise-step').forEach(el => {
+    el.addEventListener('mouseenter', () => cursor.classList.add('big'));
+    el.addEventListener('mouseleave', () => cursor.classList.remove('big'));
+  });
+}
+
+const tabs = document.querySelectorAll('.nav-wrap button');
+const contents = document.querySelectorAll('.tab-content');
+const indicator = document.getElementById('tab-indicator');
+const nav = document.getElementById('nav');
+
+function setIndicator(tab) {
+  const rect = tab.getBoundingClientRect();
+  const navRect = nav.getBoundingClientRect();
+  indicator.style.left = (rect.left - navRect.left + nav.scrollLeft) + 'px';
+  indicator.style.width = rect.width + 'px';
+}
+
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    contents.forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    setIndicator(tab);
+    setTimeout(revealVisible, 100);
+  });
+});
+
+window.addEventListener('load', () => {
+  const active = document.querySelector('.nav-wrap button.active');
+  if (active) setIndicator(active);
+});
+window.addEventListener('resize', () => {
+  const active = document.querySelector('.nav-wrap button.active');
+  if (active) setIndicator(active);
+});
+
+const revealObs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('revealed'); });
+}, { threshold: 0.08 });
+document.querySelectorAll('.chapter').forEach(el => revealObs.observe(el));
+
+function revealVisible() {
+  document.querySelectorAll('.chapter:not(.revealed)').forEach(el => {
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight) el.classList.add('revealed');
+  });
+}
+
+document.getElementById('back-top').addEventListener('click', () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+setTimeout(revealVisible, 300);
+</script>
+<style>#home-btn{position:fixed;bottom:32px;left:32px;width:44px;height:44px;border-radius:50%;background:var(--cardinal,#8c1515);color:var(--paper,#efe8d6);display:flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:3px 3px 0 var(--ink,#1a1410);z-index:901;font-size:20px;transition:transform .2s;}#home-btn:hover{transform:translateY(-4px);}#home-btn::after{content:'';position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;color:var(--ink-faint,#7a6651);opacity:0;transition:opacity .2s;}#home-btn:hover::after{content:'HOME';opacity:1;}</style>
+<a id='home-btn' href='./index.html' title='Back to Index'>&#8962;</a></body>
+</html>

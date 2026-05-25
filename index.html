@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code with Claude London 2026 · The Claude Dispatch</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper:        #efe8d6;
+  --paper-deep:   #e4d9be;
+  --paper-edge:   #d6c89f;
+  --ink:          #1a1410;
+  --ink-soft:     #4a3a2b;
+  --ink-faint:    #7a6651;
+  --cardinal:     #8c1515;
+  --cardinal-dk:  #5e0e0e;
+  --cardinal-soft:#b34646;
+  --gold:         #b48729;
+  --gold-soft:    #d8b261;
+  --gold-bg:      #f7eccd;
+  --moss:         #586a3f;
+  --moss-bg:      #e6e6c9;
+  --rule:         rgba(26,20,16,0.14);
+  --rule-soft:    rgba(26,20,16,0.07);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Newsreader', 'Noto Serif TC', Georgia, serif;
+  font-optical-sizing: auto;
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+
+body::before {
+  content:""; position: fixed; inset: 0; pointer-events: none; z-index: 999;
+  background-image:
+    radial-gradient(rgba(26,20,16,0.04) 1px, transparent 1px),
+    radial-gradient(rgba(26,20,16,0.025) 1px, transparent 1px);
+  background-size: 3px 3px, 7px 7px;
+  background-position: 0 0, 1px 1px;
+  opacity: .55; mix-blend-mode: multiply;
+}
+
+/* ── Progress Bar ── */
+#progress {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+  background: linear-gradient(90deg, var(--cardinal), var(--gold));
+  z-index: 1000; transition: width 0.1s linear;
+}
+
+/* ── Cursor ── */
+#cursor {
+  position: fixed; width: 20px; height: 20px;
+  border: 2px solid var(--cardinal); border-radius: 50%;
+  pointer-events: none; z-index: 10000;
+  transform: translate(-50%,-50%);
+  transition: transform 0.15s ease, width 0.2s ease, height 0.2s ease, opacity 0.2s;
+  mix-blend-mode: multiply;
+}
+body.hovering #cursor { width: 58px; height: 58px; }
+@media (hover:none) { #cursor { display:none; } }
+
+/* ── Masthead ── */
+.masthead {
+  background: var(--cardinal);
+  padding: 10px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px;
+}
+.masthead-brand {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+  color: var(--gold-soft); text-transform: uppercase;
+}
+.masthead-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: rgba(239,232,214,0.7); letter-spacing: 0.12em;
+}
+
+/* ── Hero ── */
+.hero {
+  padding: 64px 32px 56px;
+  max-width: 1080px; margin: 0 auto;
+  border-bottom: 2px solid var(--rule);
+  position: relative;
+}
+.hero-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.2em;
+  color: var(--cardinal); text-transform: uppercase;
+  margin-bottom: 20px; display: flex; align-items: center; gap: 12px;
+}
+.hero-eyebrow::before {
+  content: ''; display: block; width: 32px; height: 2px; background: var(--cardinal);
+}
+.hero-stamp {
+  position: absolute; top: 48px; right: 32px;
+  font-family: 'Fraunces', serif; font-size: 68px; font-weight: 900;
+  color: var(--cardinal); opacity: 0.06;
+  transform: rotate(-4deg); white-space: nowrap; pointer-events: none;
+  line-height: 1;
+}
+.hero h1 {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(34px, 5vw, 62px);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin-bottom: 20px;
+  max-width: 800px;
+}
+.hero h1 em {
+  font-style: italic; color: var(--cardinal);
+}
+.hero-deck {
+  font-size: 20px; color: var(--ink-soft);
+  max-width: 680px; line-height: 1.6;
+  font-style: italic; margin-bottom: 28px;
+}
+.hero-meta {
+  display: flex; flex-wrap: wrap; gap: 24px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--ink-faint); letter-spacing: 0.12em;
+}
+.hero-meta span { display: flex; align-items: center; gap: 6px; }
+.hero-meta span::before { content: '·'; color: var(--cardinal); }
+
+/* ── Stat Strip ── */
+.stat-strip {
+  background: var(--paper-deep);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 0 32px;
+}
+.stat-strip-inner {
+  max-width: 1080px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  divide-color: var(--rule);
+}
+.stat-item {
+  padding: 24px 0; text-align: center;
+  border-right: 1px solid var(--rule);
+}
+.stat-item:last-child { border-right: none; }
+.stat-num {
+  font-family: 'Fraunces', serif;
+  font-size: 40px; font-weight: 900;
+  color: var(--cardinal); line-height: 1;
+  margin-bottom: 4px;
+}
+.stat-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--ink-faint);
+  letter-spacing: 0.15em; text-transform: uppercase;
+}
+
+/* ── Day Section ── */
+.day-section {
+  max-width: 1080px; margin: 0 auto;
+  padding: 52px 32px;
+}
+.day-section + .day-section {
+  border-top: 2px solid var(--rule);
+}
+.day-header {
+  display: flex; align-items: baseline; gap: 20px;
+  margin-bottom: 36px;
+}
+.day-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.22em;
+  color: var(--cardinal); text-transform: uppercase;
+  background: var(--cardinal); color: #efe8d6;
+  padding: 4px 10px;
+}
+.day-title {
+  font-family: 'Fraunces', serif;
+  font-size: 28px; font-weight: 700;
+  color: var(--ink);
+}
+.day-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--ink-faint); letter-spacing: 0.12em;
+  margin-left: auto;
+}
+
+/* ── Talk Grid ── */
+.talk-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+/* ── Talk Card ── */
+.talk-card {
+  display: flex; flex-direction: column;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  text-decoration: none; color: inherit;
+  padding: 22px 22px 18px;
+  position: relative;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  overflow: hidden;
+}
+.talk-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 0; background: var(--cardinal);
+  transition: width 0.22s ease;
+}
+.talk-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.talk-card:hover::before { width: 3px; }
+.talk-card:hover .card-num { color: var(--cardinal); }
+.talk-card:hover .card-title { color: var(--cardinal-dk); }
+
+.card-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.15em;
+  color: var(--ink-faint); margin-bottom: 10px;
+  transition: color 0.18s;
+}
+.card-title {
+  font-family: 'Fraunces', serif;
+  font-size: 17px; font-weight: 700; line-height: 1.3;
+  color: var(--ink); margin-bottom: 8px;
+  transition: color 0.18s;
+}
+.card-speaker {
+  font-size: 12.5px; color: var(--ink-faint);
+  font-style: italic; margin-bottom: 10px;
+  line-height: 1.4;
+}
+.card-zh {
+  font-size: 12px; color: var(--ink-soft);
+  line-height: 1.55; margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule-soft);
+}
+.card-arrow {
+  position: absolute; bottom: 16px; right: 18px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px; color: var(--rule);
+  transition: color 0.18s, transform 0.18s;
+}
+.talk-card:hover .card-arrow {
+  color: var(--cardinal);
+  transform: translateX(3px);
+}
+
+/* ── Keynote card (special) ── */
+.talk-card.keynote {
+  background: var(--cardinal);
+  border-color: var(--cardinal-dk);
+}
+.talk-card.keynote .card-num { color: rgba(239,232,214,0.6); }
+.talk-card.keynote .card-title { color: var(--paper); }
+.talk-card.keynote .card-speaker { color: rgba(239,232,214,0.75); }
+.talk-card.keynote .card-zh { color: var(--gold-soft); border-top-color: rgba(239,232,214,0.2); }
+.talk-card.keynote .card-arrow { color: rgba(239,232,214,0.4); }
+.talk-card.keynote::before { background: var(--gold); }
+.talk-card.keynote:hover { box-shadow: 4px 4px 0 var(--cardinal-dk); }
+.talk-card.keynote:hover .card-num { color: var(--gold-soft); }
+.talk-card.keynote:hover .card-title { color: #efe8d6; }
+.talk-card.keynote:hover .card-arrow { color: var(--gold-soft); }
+
+/* ── Footer ── */
+footer {
+  background: var(--ink);
+  color: var(--paper-edge);
+  padding: 40px 32px;
+}
+.footer-inner {
+  max-width: 1080px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+.footer-col h6 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--gold-soft); margin-bottom: 12px;
+}
+.footer-col p, .footer-col li {
+  font-size: 12px; line-height: 1.8; color: rgba(214,200,159,0.7);
+  list-style: none;
+}
+.footer-col ul { display: flex; flex-direction: column; gap: 2px; }
+.footer-base {
+  max-width: 1080px; margin: 28px auto 0;
+  padding-top: 20px;
+  border-top: 1px solid rgba(214,200,159,0.15);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: rgba(214,200,159,0.4);
+  letter-spacing: 0.1em;
+}
+
+/* ── Scroll Reveal ── */
+.reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.55s ease, transform 0.55s ease; }
+.reveal.visible { opacity: 1; transform: translateY(0); }
+
+/* ── Back to Top ── */
+#btt {
+  position: fixed; bottom: 32px; right: 32px;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--cardinal); color: var(--paper);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; cursor: pointer;
+  box-shadow: 3px 3px 0 var(--ink);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 900; text-decoration: none;
+  border: none;
+}
+#btt.visible { opacity: 1; pointer-events: all; }
+#btt:hover { transform: translateY(-4px); }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .talk-grid { grid-template-columns: repeat(2, 1fr); }
+  .stat-strip-inner { grid-template-columns: repeat(2, 1fr); }
+  .stat-item:nth-child(2) { border-right: none; }
+  .footer-inner { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 600px) {
+  .talk-grid { grid-template-columns: 1fr; }
+  .stat-strip-inner { grid-template-columns: repeat(2, 1fr); }
+  .day-header { flex-wrap: wrap; gap: 10px; }
+  .day-date { margin-left: 0; }
+  .hero h1 { font-size: clamp(28px, 8vw, 44px); }
+  .footer-inner { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div id="cursor"></div>
+
+<!-- Masthead -->
+<header class="masthead">
+  <div class="masthead-brand">The Claude Dispatch · Special Conference Issue</div>
+  <div class="masthead-date">Code with Claude London · May 19–20, 2026 · London, UK</div>
+</header>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-stamp">CwC</div>
+  <div class="hero-eyebrow">Anthropic Developer Conference 2026</div>
+  <h1>Code with Claude<br><em>London 2026</em></h1>
+  <p class="hero-deck">兩天・二十四場演講・全球最頂尖的 AI 工程師與研究者，齊聚倫敦，示範如何以 Claude 構建下一代智慧應用。</p>
+  <div class="hero-meta">
+    <span>May 19–20, 2026</span>
+    <span>London, United Kingdom</span>
+    <span>Anthropic Developer Conference</span>
+    <span>24 Talks · 2 Days</span>
+  </div>
+</section>
+
+<!-- Stats -->
+<div class="stat-strip">
+  <div class="stat-strip-inner">
+    <div class="stat-item">
+      <div class="stat-num">24</div>
+      <div class="stat-label">場演講</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">2</div>
+      <div class="stat-label">天會期</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">48+</div>
+      <div class="stat-label">位講者</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">∞</div>
+      <div class="stat-label">構建可能性</div>
+    </div>
+  </div>
+</div>
+
+<!-- Day 1 -->
+<section class="day-section">
+  <div class="day-header reveal">
+    <span class="day-label">Day 1</span>
+    <h2 class="day-title">第一天・14 場演講</h2>
+    <span class="day-date">Monday, May 19, 2026</span>
+  </div>
+
+  <div class="talk-grid">
+
+    <a class="talk-card keynote reveal" href="01_opening_keynote_視覺化.html">
+      <div class="card-num">Talk 01 · KEYNOTE</div>
+      <div class="card-title">Opening Keynote</div>
+      <div class="card-speaker">Boris Cherny · Claude Code 創始人, Anthropic</div>
+      <p class="card-zh">用 Claude Code 重構人類的智識方式——工具即思維，編碼即存在</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="02_the_thinking_lever_視覺化.html">
+      <div class="card-num">Talk 02</div>
+      <div class="card-title">The Thinking Lever</div>
+      <div class="card-speaker">Alexander Bricken · 研究員, Anthropic</div>
+      <p class="card-zh">擴展思考預算：讓模型「想更久」，釋放推理能力的槓桿原理</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="03_ai_with_claude_on_aws_視覺化.html">
+      <div class="card-num">Talk 03</div>
+      <div class="card-title">AI with Claude on AWS</div>
+      <div class="card-speaker">Antonio Rodriguez · Developer &amp; Cloud Whisperer, AWS</div>
+      <p class="card-zh">在 AWS 雲端上以 Claude 打造從 Bedrock 到部署的完整 AI 解決方案</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="04_proactive_agent_workflow_視覺化.html">
+      <div class="card-num">Talk 04</div>
+      <div class="card-title">Build a Proactive Agent Workflow</div>
+      <div class="card-speaker">Maya · Applied AI Team, Anthropic</div>
+      <p class="card-zh">主動式智慧體設計：讓 AI 不等指令，自動觸發、自動行動</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="05_claude_on_microsoft_foundry_視覺化.html">
+      <div class="card-num">Talk 05</div>
+      <div class="card-title">Build AI Agents with Claude in Microsoft Foundry</div>
+      <div class="card-speaker">Marlene Mangami · Liam Hampton · Chris Snoring, Microsoft</div>
+      <p class="card-zh">在 Microsoft Foundry 上以 Claude 建構企業級 AI 智慧體的完整實戰</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="06_stop_babysitting_agents_視覺化.html">
+      <div class="card-num">Talk 06</div>
+      <div class="card-title">Stop Babysitting Your Agents</div>
+      <div class="card-speaker">Sid Bidasaria · Claude Code 創始工程師, Anthropic</div>
+      <p class="card-zh">不再盯著智慧體：以信任、監控與放手，設計真正自主的 AI 系統</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="07_coding_not_the_constraint_視覺化.html">
+      <div class="card-num">Talk 07</div>
+      <div class="card-title">Coding Not the Constraint</div>
+      <div class="card-speaker">Niklas · Engineering Productivity Lead, Spotify</div>
+      <p class="card-zh">當程式碼不再是瓶頸，真正的限制在哪裡？Spotify 的 AI 工程生產力實驗</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="08_whats_new_claude_code_視覺化.html">
+      <div class="card-num">Talk 08</div>
+      <div class="card-title">What's New in Claude Code</div>
+      <div class="card-speaker">Ralph Ramos · Technical Staff, Anthropic (Europe)</div>
+      <p class="card-zh">Claude Code 最新功能全覽：智慧體、鉤子、子智慧體、MCP 整合</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="09_the_prompting_playbook_視覺化.html">
+      <div class="card-num">Talk 09</div>
+      <div class="card-title">The Prompting Playbook</div>
+      <div class="card-speaker">Margot Vanlar · Applied AI Engineer, Anthropic London</div>
+      <p class="card-zh">提示工程劇本：讓模型輸出精準符合期望的系統化方法論</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="10_from_one_to_80_視覺化.html">
+      <div class="card-num">Talk 10</div>
+      <div class="card-title">From One to 80</div>
+      <div class="card-speaker">Yoav + Gabriel · Base44 / Wix</div>
+      <p class="card-zh">從 1 人到 80 人：Base44 如何用 AI 大幅縮短產品與工程之間的距離</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="11_building_ai_native_enterprise_視覺化.html">
+      <div class="card-num">Talk 11</div>
+      <div class="card-title">Building AI-native Enterprise</div>
+      <div class="card-speaker">Ruslan · Alex · Ulrich · monday.com / Doctolib / Delivery Hero</div>
+      <p class="card-zh">三家歐洲頂尖企業的 AI 原生轉型真實故事與踩坑心得</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="12_build_production_ready_agent_視覺化.html">
+      <div class="card-num">Talk 12</div>
+      <div class="card-title">Build Production-Ready Agent</div>
+      <div class="card-speaker">Michael Cohen · Member of Technical Staff, Anthropic</div>
+      <p class="card-zh">從 POC 到生產：智慧體的評估框架、安全設計與監控策略</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="13_how_lovable_vibecodes_視覺化.html">
+      <div class="card-num">Talk 13</div>
+      <div class="card-title">How Lovable Vibecodes</div>
+      <div class="card-speaker">Fabian Hedin · Co-founder &amp; CTO, Lovable</div>
+      <p class="card-zh">Lovable 如何用振動編碼讓任何人都能在幾分鐘內創造完整應用</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="14_get_to_production_faster_視覺化.html">
+      <div class="card-num">Talk 14</div>
+      <div class="card-title">Get to Production Faster</div>
+      <div class="card-speaker">Anthropic · Vercel · Modal · Daytona · Cloudflare</div>
+      <p class="card-zh">五大平台聯手示範：從零到生產部署的極速工作流程與最佳實踐</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+  </div>
+</section>
+
+<!-- Day 2 -->
+<section class="day-section">
+  <div class="day-header reveal">
+    <span class="day-label">Day 2</span>
+    <h2 class="day-title">第二天・10 場演講</h2>
+    <span class="day-date">Tuesday, May 20, 2026</span>
+  </div>
+
+  <div class="talk-grid">
+
+    <a class="talk-card reveal" href="15_memory_and_dreaming_視覺化.html">
+      <div class="card-num">Talk 15</div>
+      <div class="card-title">Memory and Dreaming</div>
+      <div class="card-speaker">Ravi · Head of API Knowledge, Anthropic</div>
+      <p class="card-zh">記憶與夢境：AI 如何從短期記憶到長期學習，沉澱跨對話的知識</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="16_legal_agents_lessons_視覺化.html">
+      <div class="card-num">Talk 16</div>
+      <div class="card-title">Legal Agents Lessons</div>
+      <div class="card-speaker">Jacob Emeling · Staff Software Engineer, Legora</div>
+      <p class="card-zh">法律智慧體實戰：在嚴謹高風險領域中讓 AI 可信賴、可審計、可解釋</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="17_picking_right_model_視覺化.html">
+      <div class="card-num">Talk 17</div>
+      <div class="card-title">Picking the Right Model</div>
+      <div class="card-speaker">Lucas · Applied AI Team, Anthropic</div>
+      <p class="card-zh">選對模型：速度、成本、能力三角的取捨指南，避免過度使用旗艦模型</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="18_trading_signals_視覺化.html">
+      <div class="card-num">Talk 18</div>
+      <div class="card-title">Trading Signals</div>
+      <div class="card-speaker">Tashara Fernando · Head of Data &amp; AI, Man Group</div>
+      <p class="card-zh">在全球最大對沖基金之一用 AI 解讀交易訊號、管理風險、加速研究</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="19_claude_on_google_cloud_視覺化.html">
+      <div class="card-num">Talk 19</div>
+      <div class="card-title">Building with Claude on Google Cloud</div>
+      <div class="card-speaker">Emanuele Nardini · Developer Advocate, Google Cloud</div>
+      <p class="card-zh">在 Google Cloud 上以 Claude 構建下一代 AI 應用的完整架構與工具鏈</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="20_agentic_analytics_視覺化.html">
+      <div class="card-num">Talk 20</div>
+      <div class="card-title">Agentic Analytics Harness</div>
+      <div class="card-speaker">Omni CTO · Omni</div>
+      <p class="card-zh">智慧體分析工具鏈：讓數據探索自動化，把分析師從重複查詢中解放</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="21_designing_with_claude_視覺化.html">
+      <div class="card-num">Talk 21</div>
+      <div class="card-title">Designing with Claude</div>
+      <div class="card-speaker">Dan Carry · Product Manager, Anthropic Labs</div>
+      <p class="card-zh">與 Claude 共同設計：從概念草圖到視覺原型的人機協作新工作流</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="22_capability_curve_視覺化.html">
+      <div class="card-num">Talk 22</div>
+      <div class="card-title">The Capability Curve</div>
+      <div class="card-speaker">Jeremy · PM Coding Behaviors &amp; Capabilities, Anthropic</div>
+      <p class="card-zh">能力曲線：基準測試飽和之後，AI 能力的下一個前沿在哪裡？</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="23_claude_platform_視覺化.html">
+      <div class="card-num">Talk 23</div>
+      <div class="card-title">Getting More Out of the Claude Platform</div>
+      <div class="card-speaker">Punit Sha + Ben · Anthropic Platform / HeroCorp</div>
+      <p class="card-zh">從 Prompt Caching 到情境工程，把 API 成本降低 10 倍的實戰策略</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="talk-card reveal" href="24_ai_native_org_視覺化.html">
+      <div class="card-num">Talk 24 · FINALE</div>
+      <div class="card-title">Running an AI-native Engineering Org</div>
+      <div class="card-speaker">Fiona Fung · Head of Eng &amp; Product, Claude Code · Anthropic</div>
+      <p class="card-zh">100% Claude 提交率的工程文化：驗證取代猜測，程式碼取代白板辯論</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-col">
+      <h6>Conference</h6>
+      <p>Code with Claude London 2026<br>
+      Anthropic Developer Conference<br>
+      May 19–20, 2026 · London, UK<br>
+      Hosted by Anthropic</p>
+    </div>
+    <div class="footer-col">
+      <h6>This Archive</h6>
+      <ul>
+        <li>24 Interactive HTML lecture notes</li>
+        <li>Day 1: Talks 01–14 (May 19)</li>
+        <li>Day 2: Talks 15–24 (May 20)</li>
+        <li>The Claude Dispatch design system</li>
+        <li>Each note: primers · stories · visuals · guided questions</li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h6>Pipeline</h6>
+      <ul>
+        <li>Source: Google Doc transcript</li>
+        <li>Pipeline: transcript → 整理.md → HTML</li>
+        <li>Skill: cs153-html-generator</li>
+        <li>Compiled: May 2026</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-base">
+    © The Claude Dispatch · Set in Fraunces, Newsreader &amp; JetBrains Mono · 24 talks · Code with Claude London 2026
+  </div>
+</footer>
+
+<button id="btt" title="Back to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<script>
+// Progress bar
+const prog = document.getElementById('progress');
+window.addEventListener('scroll', () => {
+  const h = document.documentElement;
+  const pct = h.scrollTop / (h.scrollHeight - h.clientHeight) * 100;
+  prog.style.width = pct + '%';
+  document.getElementById('btt').classList.toggle('visible', h.scrollTop > 400);
+});
+
+// Cursor
+const cur = document.getElementById('cursor');
+document.addEventListener('mousemove', e => {
+  cur.style.left = e.clientX + 'px';
+  cur.style.top = e.clientY + 'px';
+});
+document.querySelectorAll('a, button').forEach(el => {
+  el.addEventListener('mouseenter', () => document.body.classList.add('hovering'));
+  el.addEventListener('mouseleave', () => document.body.classList.remove('hovering'));
+});
+
+// Scroll reveal
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+}, { threshold: 0.08 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

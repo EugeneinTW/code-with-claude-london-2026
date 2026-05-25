@@ -1,0 +1,964 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Thinking Lever · The Claude Dispatch №02 — Alexander Bricken</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper:        #efe8d6;
+    --paper-deep:   #e4d9be;
+    --paper-edge:   #d6c89f;
+    --ink:          #1a1410;
+    --ink-soft:     #4a3a2b;
+    --ink-faint:    #7a6651;
+    --cardinal:     #8c1515;
+    --cardinal-dk:  #5e0e0e;
+    --cardinal-soft:#b34646;
+    --gold:         #b48729;
+    --gold-soft:    #d8b261;
+    --gold-bg:      #f7eccd;
+    --moss:         #586a3f;
+    --moss-bg:      #e6e6c9;
+    --rule:         rgba(26,20,16,0.14);
+    --rule-soft:    rgba(26,20,16,0.07);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  *::selection { background: var(--cardinal); color: var(--paper); }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Newsreader','Noto Serif TC',Georgia,serif;
+    font-optical-sizing: auto;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.65;
+    font-size: 17px;
+    overflow-x: hidden;
+    cursor: default;
+  }
+  body::before {
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:999;
+    background-image:
+      radial-gradient(rgba(26,20,16,0.04) 1px, transparent 1px),
+      radial-gradient(rgba(26,20,16,0.025) 1px, transparent 1px);
+    background-size: 3px 3px, 7px 7px;
+    background-position: 0 0, 1px 1px;
+    opacity:.55; mix-blend-mode:multiply;
+  }
+
+  /* Progress + Cursor */
+  .progress { position:fixed; top:0; left:0; height:3px; width:0%; background:linear-gradient(90deg,var(--cardinal-dk),var(--cardinal),var(--gold)); z-index:1000; transition:width .12s linear; }
+  .cursor-dot {
+    position:fixed; top:0; left:0; width:10px; height:10px;
+    border:1.5px solid var(--cardinal); border-radius:50%;
+    pointer-events:none; z-index:998;
+    transform:translate(-50%,-50%);
+    transition:width .25s ease,height .25s ease,background .25s ease,opacity .3s;
+    mix-blend-mode:multiply; opacity:.8;
+  }
+  .cursor-dot.hover { width:38px; height:38px; background:rgba(140,21,21,0.12); }
+  @media(hover:none){ .cursor-dot{display:none;} }
+
+  .container { max-width:1080px; margin:0 auto; padding:0 32px; }
+
+  /* MASTHEAD */
+  .masthead { border-bottom:1px solid var(--ink); padding:18px 0 14px; }
+  .masthead-inner { display:flex; align-items:baseline; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-soft); }
+  .masthead-title { font-family:'Fraunces',serif; font-weight:900; font-size:22px; letter-spacing:-.01em; color:var(--cardinal-dk); text-transform:none; font-variation-settings:"SOFT" 0; }
+  .masthead-meta { display:flex; gap:22px; }
+  .masthead-meta span:not(:last-child)::after { content:"·"; margin-left:22px; color:var(--ink-faint); }
+
+  /* HERO */
+  .hero { padding:88px 0 72px; border-bottom:1px solid var(--ink); position:relative; background: radial-gradient(1200px 400px at 80% 20%,rgba(180,135,41,0.08),transparent 60%), radial-gradient(900px 600px at 10% 100%,rgba(140,21,21,0.06),transparent 60%); }
+  .hero-grid { display:grid; grid-template-columns:160px 1fr; gap:56px; align-items:start; }
+  .issue-stamp {
+    font-family:'Fraunces',serif; font-weight:900; font-style:italic;
+    font-size:72px; line-height:1; color:var(--cardinal);
+    white-space:nowrap;
+    text-shadow: 2px 2px 0 var(--paper-edge), 3px 3px 0 var(--cardinal-dk);
+    transform:rotate(-4deg); transform-origin:center;
+    font-variation-settings:"SOFT" 80, "opsz" 72;
+  }
+  .issue-stamp small { display:block; font-family:'JetBrains Mono',monospace; font-size:13px; font-style:normal; font-weight:700; letter-spacing:.18em; color:var(--ink-soft); margin-top:8px; }
+  h1 { font-family:'Fraunces',serif; font-weight:900; font-size:clamp(34px,4.6vw,58px); line-height:1.12; letter-spacing:-.02em; font-variation-settings:"SOFT" 30,"opsz" 72; }
+  h1 em { font-style:italic; color:var(--cardinal); }
+  .deck { font-family:'Newsreader',serif; font-size:20px; line-height:1.5; color:var(--ink-soft); margin-top:18px; max-width:700px; font-style:italic; }
+  .byline { display:flex; align-items:center; gap:16px; margin-top:28px; padding-top:20px; border-top:1px solid var(--rule); font-family:'JetBrains Mono',monospace; font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint); }
+  .byline-name { color:var(--ink-soft); font-weight:700; }
+  .toc-hint { margin-top:18px; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.12em; color:var(--ink-faint); }
+
+  /* STAT STRIP */
+  .stat-strip { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid var(--ink); }
+  .stat-cell { padding:28px 24px; border-right:1px solid var(--rule); position:relative; cursor:default; }
+  .stat-cell:last-child { border-right:none; }
+  .stat-num { font-family:'Fraunces',serif; font-weight:900; font-size:38px; line-height:1; color:var(--cardinal); font-variation-settings:"SOFT" 0; }
+  .stat-label { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint); margin-top:6px; }
+  .stat-tip { display:none; position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%); background:var(--ink); color:var(--paper); font-family:'Newsreader',serif; font-size:13px; padding:10px 14px; border-radius:3px; white-space:nowrap; z-index:10; max-width:280px; white-space:normal; line-height:1.5; }
+  .stat-tip::after { content:""; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:var(--ink); }
+  .stat-cell:hover .stat-tip { display:block; }
+
+  /* NAV TABS */
+  .nav-wrap { position:sticky; top:0; z-index:100; background:var(--paper-deep); border-bottom:1px solid var(--ink); }
+  .tab-nav { display:flex; gap:0; position:relative; overflow-x:auto; }
+  .tab-btn { font-family:'JetBrains Mono',monospace; font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint); padding:16px 24px; background:none; border:none; cursor:pointer; white-space:nowrap; transition:color .2s; }
+  .tab-btn.active { color:var(--cardinal); }
+  .tab-btn:hover { color:var(--ink-soft); }
+  .tab-indicator { position:absolute; bottom:0; height:2px; background:var(--cardinal); transition:left .3s cubic-bezier(.4,0,.2,1),width .3s cubic-bezier(.4,0,.2,1); }
+
+  /* ARTICLE */
+  article { padding:72px 0 96px; }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  /* CHAPTER */
+  .chapter { position:relative; margin-bottom:72px; padding-bottom:72px; border-bottom:1px solid var(--rule); }
+  .chapter:last-child { border-bottom:none; }
+  .roman { position:absolute; top:-8px; right:0; font-family:'Fraunces',serif; font-weight:900; font-style:italic; font-size:220px; line-height:1; color:var(--ink); opacity:.045; pointer-events:none; font-variation-settings:"SOFT" 0,"opsz" 144; z-index:0; }
+  h2 { font-family:'Fraunces',serif; font-weight:900; font-size:44px; line-height:1.15; letter-spacing:-.02em; font-variation-settings:"SOFT" 30,"opsz" 48; position:relative; z-index:1; }
+  h2::before { content:""; display:block; width:32px; height:3px; background:var(--cardinal); margin-bottom:14px; }
+  h3 { font-family:'Fraunces',serif; font-weight:700; font-size:22px; line-height:1.3; margin:32px 0 12px; font-variation-settings:"SOFT" 20,"opsz" 24; }
+  h4 { font-family:'Fraunces',serif; font-weight:700; font-size:18px; line-height:1.3; margin:24px 0 8px; font-variation-settings:"SOFT" 20,"opsz" 20; }
+  h5 { font-family:'Fraunces',serif; font-weight:600; font-size:18px; font-style:italic; margin:0 0 8px; font-variation-settings:"SOFT" 40,"opsz" 18; }
+  p { max-width:760px; margin-top:16px; }
+  p.lede { font-size:19px; color:var(--ink-soft); line-height:1.6; }
+  strong { font-weight:700; }
+  ul, ol { max-width:720px; margin-top:12px; padding-left:24px; }
+  li { margin-bottom:8px; }
+
+  /* PULLQUOTE */
+  .pullquote { margin:40px 0; padding:28px 36px; border-left:4px solid var(--cardinal); background:var(--gold-bg); max-width:820px; position:relative; }
+  .pullquote::before { content:"\201C"; font-family:'Fraunces',serif; font-size:80px; line-height:1; color:var(--cardinal); opacity:.18; position:absolute; top:-10px; left:16px; font-style:italic; transition:transform .3s,opacity .3s; }
+  .pullquote:hover::before { transform:rotate(-6deg); opacity:.4; }
+  .pullquote p { font-family:'Newsreader',serif; font-size:20px; font-style:italic; line-height:1.55; color:var(--ink-soft); margin:0; max-width:100%; }
+  .pullquote cite { display:block; margin-top:12px; font-family:'JetBrains Mono',monospace; font-size:11.5px; letter-spacing:.1em; color:var(--ink-faint); }
+  .zh { display:block; margin-top:10px; padding-top:10px; border-top:1px dashed var(--rule); font-style:normal; font-size:14px; color:var(--ink-faint); }
+
+  /* PRIMER */
+  aside.primer { background:var(--gold-bg); border:1px solid var(--gold-soft); border-left:4px solid var(--gold); padding:24px 28px; margin:28px 0; max-width:820px; border-radius:2px; }
+  .primer-tag { font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--gold); display:block; margin-bottom:10px; }
+  aside.primer h5 { color:var(--ink); }
+  aside.primer p { font-size:15.5px; margin-top:10px; max-width:100%; }
+  aside.primer ul { font-size:15.5px; }
+
+  /* STORY */
+  .story { border:1px solid var(--rule); border-top:3px solid var(--cardinal); padding:28px 32px; margin:32px 0; max-width:820px; background:rgba(255,255,255,0.25); }
+  .story-tag { font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cardinal-soft); display:block; margin-bottom:12px; }
+  .story h4 { margin-top:0; font-style:italic; }
+  .story p { font-size:15.5px; max-width:100%; }
+
+  /* INLINE TERM */
+  .term { background:rgba(180,135,41,0.18); border-bottom:1.5px dashed var(--cardinal-soft); cursor:help; position:relative; padding:0 2px; transition:background .2s; }
+  .term:hover { background:rgba(180,135,41,0.38); }
+  .term::after { content:attr(data-def); display:none; position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); background:var(--ink); color:var(--paper); font-family:'Newsreader',serif; font-size:13px; font-style:normal; padding:10px 14px; border-radius:3px; white-space:normal; min-width:220px; max-width:320px; z-index:50; line-height:1.5; pointer-events:none; }
+  .term:hover::after { display:block; }
+
+  /* DUO CARDS */
+  .duo { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin:32px 0; max-width:860px; }
+  .duo-card { padding:22px 26px; border:1px solid var(--rule); border-top:3px solid var(--ink); background:var(--paper-deep); cursor:default; transition:transform .2s,box-shadow .2s; }
+  .duo-card:hover { transform:translateY(-4px); box-shadow:4px 4px 0 var(--ink); }
+  .duo-card h4 { margin:0 0 10px; font-size:16px; }
+  .duo-card p { font-size:14.5px; margin:0; max-width:100%; }
+  @media(max-width:640px){ .duo { grid-template-columns:1fr; } }
+
+  /* LEDGER / INSIGHT LIST */
+  .ledger { margin:28px 0; max-width:820px; }
+  .ledger-row { display:grid; grid-template-columns:52px 1fr; gap:0; border-bottom:1px solid var(--rule); padding:18px 0; position:relative; overflow:hidden; transition:padding .2s; }
+  .ledger-row::before { content:""; position:absolute; left:0; top:0; bottom:0; width:0; background:var(--cardinal); transition:width .3s ease; }
+  .ledger-row:hover::before { width:3px; }
+  .ledger-row:hover { padding-left:12px; }
+  .ledger-num { font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:var(--ink-faint); padding-top:2px; transition:color .2s; }
+  .ledger-row:hover .ledger-num { color:var(--cardinal); }
+  .ledger-body p { margin:0; font-size:15.5px; max-width:100%; }
+  .ledger-body strong { color:var(--ink); }
+
+  /* STACK LAYERS */
+  .stack-layers { margin:32px 0; max-width:680px; }
+  .stack-layer { display:grid; grid-template-columns:44px 1fr; gap:0; padding:18px 20px; border:1px solid var(--rule); border-bottom:none; position:relative; overflow:hidden; transition:padding-left .2s; cursor:default; }
+  .stack-layer:last-child { border-bottom:1px solid var(--rule); }
+  .stack-layer::before { content:""; position:absolute; left:0; top:0; bottom:0; width:0; background:var(--cardinal); transition:width .3s ease; }
+  .stack-layer:hover::before { width:4px; }
+  .stack-layer:hover { padding-left:28px; }
+  .layer-num { font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:var(--cardinal); opacity:.4; font-style:italic; transition:opacity .2s; padding-top:3px; }
+  .stack-layer:hover .layer-num { opacity:1; }
+  .layer-body strong { display:block; font-size:15px; margin-bottom:4px; }
+  .layer-body p { margin:0; font-size:14px; max-width:100%; color:var(--ink-soft); }
+
+  /* EFFORT CHART */
+  .effort-chart { margin:32px 0; max-width:820px; }
+  .effort-row { display:grid; grid-template-columns:110px 1fr 80px; gap:12px; align-items:center; margin-bottom:14px; }
+  .effort-label { font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); }
+  .effort-track { background:var(--paper-deep); height:28px; border-radius:2px; overflow:hidden; position:relative; border:1px solid var(--rule); }
+  .effort-fill { height:100%; background:linear-gradient(90deg,var(--cardinal-dk),var(--cardinal)); width:0; transition:width 1.5s ease; display:flex; align-items:center; }
+  .effort-fill::after { content:attr(data-text); font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--paper); padding-left:8px; white-space:nowrap; position:absolute; left:0; }
+  .effort-tokens { font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--ink-faint); text-align:right; }
+  .effort-row.highlight .effort-label { color:var(--gold); font-weight:700; }
+  .effort-row.highlight .effort-fill { background:linear-gradient(90deg,var(--gold),var(--gold-soft)); }
+  .effort-row.highlight .effort-tokens { color:var(--gold); font-weight:700; }
+
+  /* PILLARS VISUAL */
+  .pillars { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin:32px 0; max-width:840px; }
+  .pillar-card { padding:24px 20px; background:var(--paper-deep); border:1px solid var(--rule); border-top:4px solid var(--cardinal); text-align:center; }
+  .pillar-icon { font-family:'JetBrains Mono',monospace; font-size:32px; font-weight:700; color:var(--cardinal); opacity:.6; line-height:1; margin-bottom:12px; }
+  .pillar-card h4 { font-size:15px; margin:0 0 8px; text-align:center; }
+  .pillar-card p { font-size:13.5px; color:var(--ink-soft); margin:0; max-width:100%; }
+  @media(max-width:640px){ .pillars{grid-template-columns:1fr;} }
+
+  /* MODEL COMPARE */
+  .model-compare { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin:32px 0; max-width:820px; }
+  .model-card { padding:24px; border:1px solid var(--rule); }
+  .model-card.winner { border-top:4px solid var(--moss); background:var(--moss-bg); }
+  .model-card.loser { border-top:4px solid var(--cardinal-soft); background:rgba(179,70,70,0.05); }
+  .model-card h4 { margin:0 0 12px; font-size:16px; }
+  .model-card p { font-size:14px; margin:6px 0; max-width:100%; }
+  .model-tag { font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; display:inline-block; padding:2px 8px; margin-bottom:12px; }
+  .model-card.winner .model-tag { background:var(--moss); color:var(--paper); }
+  .model-card.loser .model-tag { background:var(--cardinal-soft); color:var(--paper); }
+  @media(max-width:640px){ .model-compare{grid-template-columns:1fr;} }
+
+  /* DISCUSS */
+  .discuss { border-left:3px solid var(--cardinal-soft); padding:18px 22px; margin:22px 0; background:var(--paper-deep); max-width:760px; }
+  .discuss p { margin:0 0 8px; font-size:15.5px; font-weight:600; max-width:100%; }
+  .discuss details summary { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--cardinal-soft); cursor:pointer; margin-top:6px; }
+  .discuss details ul { margin-top:10px; font-size:14px; color:var(--ink-soft); }
+  .discuss details li { margin-bottom:6px; }
+
+  /* SCROLL REVEAL */
+  .reveal { opacity:0; transform:translateY(22px); transition:opacity .6s ease,transform .6s ease; }
+  .reveal.visible { opacity:1; transform:none; }
+
+  /* BACK TO TOP */
+  .back-top { position:fixed; bottom:32px; right:32px; width:44px; height:44px; background:var(--cardinal); color:var(--paper); border:none; cursor:pointer; font-size:20px; display:flex; align-items:center; justify-content:center; box-shadow:4px 4px 0 var(--ink); transition:transform .2s,box-shadow .2s; z-index:90; }
+  .back-top:hover { transform:translateY(-4px); box-shadow:4px 8px 0 var(--ink); }
+
+  /* FOOTER */
+  footer { border-top:2px solid var(--ink); padding:48px 0; background:var(--paper-deep); }
+  .footer-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:32px; }
+  .footer-col h6 { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:14px; }
+  .footer-col p, .footer-col li { font-size:13.5px; color:var(--ink-soft); line-height:1.7; }
+  .footer-col ul { list-style:none; padding:0; margin:0; }
+  .footer-bottom { margin-top:36px; padding-top:20px; border-top:1px solid var(--rule); font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.1em; color:var(--ink-faint); text-align:center; }
+  @media(max-width:900px){ .footer-grid{grid-template-columns:1fr;} .hero-grid{grid-template-columns:1fr;} .stat-strip{grid-template-columns:1fr 1fr;} }
+  @media(max-width:540px){ .container{padding:0 22px;} .stat-strip{grid-template-columns:1fr;} .pillars{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+<div class="cursor-dot" id="cursor"></div>
+
+<!-- MASTHEAD -->
+<header class="masthead">
+  <div class="container">
+    <div class="masthead-inner">
+      <span class="masthead-title">The Claude Dispatch</span>
+      <div class="masthead-meta">
+        <span>Vol. I · No. 02</span>
+        <span>Code with Claude London 2026</span>
+        <span>May 20, 2026</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div class="issue-stamp">№02<small>DAY 2 · TALK 1</small></div>
+      <div>
+        <h1>The <em>Thinking</em> Lever</h1>
+        <p class="deck">推理算力（Test-time Compute）如何讓 Claude 化身高智能代理——從 50 秒的低努力模擬，到 10 倍 Token 的極致物理引擎，Anthropic 研究員 Alexander Bricken 帶你掌握 Effort 的黃金法則。</p>
+        <div class="byline">
+          <span>Speaker</span>
+          <span class="byline-name">Alexander Bricken</span>
+          <span>Applied AI Research · Anthropic</span>
+          <span>20 May 2026</span>
+        </div>
+        <p class="toc-hint">↓ I. 總覽 · II. 推理三支柱 · III. Effort 決策框架 · IV. 模型 vs Effort · V. 思考題</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STAT STRIP -->
+<div class="stat-strip">
+  <div class="stat-cell">
+    <div class="stat-num">4,600</div>
+    <div class="stat-label">Low Effort Tokens</div>
+    <div class="stat-tip">Claude Opus 4.7 在低努力度下完成車流模擬，耗費約 4,600 個 output tokens，花費 50 秒。結果「可接受但簡陋」。</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-num">10×</div>
+    <div class="stat-label">Max vs Low Token 倍率</div>
+    <div class="stat-tip">Max Effort 模式消耗約 Low Effort 10 倍的 Token 與時間，換來更精細的物理引擎渲染與更高的行駛智能。</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-num">50%</div>
+    <div class="stat-label">Mythos 16h 工作準確率</div>
+    <div class="stat-tip">Anthropic 最新模型 Mythos 在 Meter Benchmark 上能自主完成相當於人類 16 小時工作量的任務，並維持 50% 的準確率。</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-num">Extra High</div>
+    <div class="stat-label">官方預設 Pareto 最優</div>
+    <div class="stat-tip">Extra High 是 Claude Code 與 Claude.ai 的官方預設努力度——在智能、延遲、Token 消耗三者之間取得 Pareto 最優平衡點。</div>
+  </div>
+</div>
+
+<!-- NAV TABS -->
+<nav class="nav-wrap">
+  <div class="container">
+    <div class="tab-nav" id="tabNav">
+      <button class="tab-btn active" data-tab="0">I · 總覽</button>
+      <button class="tab-btn" data-tab="1">II · 推理三支柱</button>
+      <button class="tab-btn" data-tab="2">III · Effort 決策框架</button>
+      <button class="tab-btn" data-tab="3">IV · 模型 vs Effort</button>
+      <button class="tab-btn" data-tab="4">V · 思考題</button>
+      <div class="tab-indicator" id="tabIndicator"></div>
+    </div>
+  </div>
+</nav>
+
+<article>
+<div class="container">
+
+<!-- ═══════════════════ TAB I: 總覽 ═══════════════════ -->
+<div class="tab-panel active" id="panel-0">
+
+  <section class="chapter reveal">
+    <span class="roman">I</span>
+    <h2>核心論點</h2>
+    <p class="lede">Alexander Bricken 提出了一個顛覆直覺的論點：思考（Thinking）不是一個可以手動關閉的開關，而是模型的核心推理能力本身。正確的工程思維，是給 Claude 這個工具，讓它自己決定何時用。</p>
+
+    <div class="pullquote">
+      <p><strong>"A thinking toggle is actually a poor proxy for the amount of effort that a model should put in. You're not expressing how hard you want Claude to think when you turn a thinking toggle on or off — you're actually just turning off a core capability."</strong>
+      <span class="zh">「思考開關是一個糟糕的代理指標。當你開關它時，你並沒有在表達你想要 Claude 思考多努力——你只是在關掉它的核心能力。」</span></p>
+      <cite>— Alexander Bricken, Anthropic Applied AI Research</cite>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 Test-time Compute</span>
+      <h5>什麼是「推理時算力」（Test-time Compute）？</h5>
+      <p>以前 AI 模型的「聰明度」完全取決於訓練時投入多少算力——訓練越久，模型越聰明。現在有了第二個維度：<strong>推理時算力</strong>，也就是模型「回答你問題那一刻」投入多少 Token 去思考。</p>
+      <ul>
+        <li>✗ 以前：聰明度 = f(訓練算力)，確定且固定</li>
+        <li>✓ 現在：聰明度 = f(訓練算力) × g(推理算力)，可動態調控</li>
+      </ul>
+      <p>就像考試，同一個學生（訓練好的模型），思考 10 分鐘和思考 2 小時，答卷品質會非常不同。Test-time Compute 就是讓模型「考試時多想一下」的機制。</p>
+    </aside>
+
+    <h3>五大核心洞見</h3>
+    <div class="ledger">
+      <div class="ledger-row reveal">
+        <span class="ledger-num">01</span>
+        <div class="ledger-body"><p><strong>思考開關（Thinking Toggle）是設計錯誤。</strong> 正確做法：給模型思考工具，讓 <span class="term" data-def="Adaptive Thinking：模型自主決定何時思考、何時行動、何時輸出的新一代推理架構，是 Interleaved Thinking 的進化版。">Adaptive Thinking</span> 自主決定何時啟動。</p></div>
+      </div>
+      <div class="ledger-row reveal">
+        <span class="ledger-num">02</span>
+        <div class="ledger-body"><p><strong>Effort 越高，品質越好，但邊際效益遞減。</strong> Max 模式比 Extra High 多花 2 倍 Token，但效能增幅邊際化。</p></div>
+      </div>
+      <div class="ledger-row reveal">
+        <span class="ledger-num">03</span>
+        <div class="ledger-body"><p><strong>Extra High 是 Pareto 最優黃金點。</strong> Claude Code 與 Claude.ai 的官方預設值——智能、速度、成本三者最佳平衡。</p></div>
+      </div>
+      <div class="ledger-row reveal">
+        <span class="ledger-num">04</span>
+        <div class="ledger-body"><p><strong>Intelligence-bound 任務：大模型＋低 Effort 完勝小模型＋高 Effort。</strong> 推理算力是基於模型基礎智力「放大」的，基礎不夠，燒再多 Token 也無效。</p></div>
+      </div>
+      <div class="ledger-row reveal">
+        <span class="ledger-num">05</span>
+        <div class="ledger-body"><p><strong>AI 的工作時域正在從「秒/分」跨越到「天/週/月」。</strong> Mythos 模型已能自主完成 16 小時人類工作量的任務，且保持 50% 準確率。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter reveal">
+    <span class="roman">I</span>
+    <h2>車流模擬：三種 Effort 的直觀對比</h2>
+    <p class="lede">演講現場，Alexander 以「單行道車流模擬」Prompt 在 Claude Opus 4.7 上即時展示三種 Effort 的差異，結果令全場印象深刻。</p>
+
+    <div class="story">
+      <span class="story-tag">現場展示 · 三層次差距</span>
+      <h4>從「紅綠燈長在馬路中央」到「物理引擎渲染」</h4>
+      <p>Alexander 輸入同一個 Prompt——「在一條單行道上創建帶有紅綠燈的逼真車流模擬」——並在台上即時執行三個版本：</p>
+      <p><strong>Low Effort（50 秒 / 4,600 Tokens）：</strong> 可運作，但紅綠燈直接矗立在馬路中央，位置完全不合物理邏輯。</p>
+      <p><strong>High Effort（~2× 時間 / ~2× Tokens）：</strong> 出現卡車等多種車型，紅綠燈修正為懸掛式（但倒過來），車輛開始具備「互動智能」，會對周圍車輛動態做出反應。</p>
+      <p><strong>Max Effort（10× Tokens + 時間）：</strong> 完整物理引擎——懸掛式紅綠燈遵守物理定律、美麗的晚霞天空背景，車輛呈現最高智能的行駛動態。</p>
+      <p><em>這個案例完美詮釋了「更多思考時間 → 更高品質輸出」的對數線性成長規律。</em></p>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 對數線性成長是什麼意思？</span>
+      <h5>為什麼「多花 10 倍」不等於「好 10 倍」？</h5>
+      <p>「對數線性成長」意思是：品質提升的速度比 Token 消耗的速度慢。舉例：</p>
+      <ul>
+        <li>100 → 1,000 tokens：品質從 60 分進步到 75 分（+15 分）</li>
+        <li>1,000 → 10,000 tokens：品質從 75 分進步到 85 分（+10 分）</li>
+        <li>10,000 → 100,000 tokens：品質從 85 分進步到 90 分（+5 分）</li>
+      </ul>
+      <p>這就是為什麼 Max Effort 不值得作為預設——你在用指數級的成本，換取邊際效益遞減的品質提升。</p>
+    </aside>
+  </section>
+
+  <section class="chapter reveal">
+    <span class="roman">I</span>
+    <h2>長週期自主代理的未來藍圖</h2>
+    <p class="lede">從 50 秒到 16 小時，Claude 的工作時域正在跨越多個數量級。Alexander 展示的 Meter Benchmark 數據，預告了一個 AI 代理人全面接管知識工作的時代。</p>
+
+    <div class="story">
+      <span class="story-tag">內部測試 · Mythos 模型的 16 小時挑戰</span>
+      <h4>當 AI 能頂替一個員工工作整整兩個工作日</h4>
+      <p>Anthropic 的 Meter Benchmark 追蹤的不是「問答準確率」，而是「AI 能自主完成多少小時的人類知識工作」——這才是真正衡量代理人能力的維度。</p>
+      <p>最新內部模型 Mythos 已能達到：<strong>在無人干預的情況下，自主完成相當於人類 16 小時工作量的任務，並維持 50% 的準確率</strong>。</p>
+      <p><em>這意味著：你不是在使用一個聊天機器人，而是在雇用一個可以整晚自主作業的數位員工——然後早上醒來，50% 的機率你的任務已經完成了。</em></p>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · Long-horizon Tasks 是什麼？</span>
+      <h5>「長週期任務」vs「短對話任務」的本質差異</h5>
+      <p>傳統 AI 互動模式：你問 → AI 答 → 你問 → AI 答（秒級循環）。長週期任務模式：你設定目標和預算 → AI 自主規劃、執行、修正 → 數小時/天後交付成果。</p>
+      <ul>
+        <li>短對話：「幫我寫一段程式碼」→ AI 立即回答</li>
+        <li>長週期：「重構這個 10 萬行的 codebase」→ AI 跑一週，期間自己 debug、測試、提交 PR</li>
+      </ul>
+      <p>這就是為什麼 Test-time Compute 如此重要——它讓 AI 有能力在「長週期」中持續推理，而不只是即時反應。</p>
+    </aside>
+  </section>
+
+</div><!-- end panel-0 -->
+
+<!-- ═══════════════════ TAB II: 推理三支柱 ═══════════════════ -->
+<div class="tab-panel" id="panel-1">
+
+  <section class="chapter reveal">
+    <span class="roman">II</span>
+    <h2>推理算力的三大支柱</h2>
+    <p class="lede">Test-time Compute 並非單一能力——它由三種不同形態的「Token 消耗」構成，每一種都承擔著不同的認知功能。理解這三者，是設計高效 AI 系統的基礎。</p>
+
+    <div class="pillars">
+      <div class="pillar-card reveal">
+        <div class="pillar-icon">✎</div>
+        <h4>思考空間<br>Thinking Space</h4>
+        <p>模型的「草稿紙」。在正式回答前，Claude 用這個空間釐清邏輯、規劃步驟、評估可能性。這是推理能力的核心來源。</p>
+      </div>
+      <div class="pillar-card reveal">
+        <div class="pillar-icon">⚙</div>
+        <h4>工具呼叫<br>Tool Calling</h4>
+        <p>Claude 與外部世界的接口。從網頁搜尋、MCP Server 呼叫，到寫入檔案系統，每次工具呼叫都是一次「感知→行動」循環。</p>
+      </div>
+      <div class="pillar-card reveal">
+        <div class="pillar-icon">◉</div>
+        <h4>文本輸出<br>Text Output</h4>
+        <p>最終向用戶交付的語言輸出。可以是答案摘要、追問用戶的問題，或是一份完整的分析報告。</p>
+      </div>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 為什麼「思考空間」不是浪費？</span>
+      <h5>思考過程消耗的 Token，就是智能的代價</h5>
+      <p>很多人認為：「思考」的 Token 輸出用戶看不到，是在浪費錢。這是錯誤的想法。</p>
+      <ul>
+        <li>沒有思考空間的 AI：直接輸出，速度快，但容易犯低級錯誤</li>
+        <li>有思考空間的 AI：先在草稿紙上推演，發現錯誤，修正後再輸出</li>
+      </ul>
+      <p>你不會因為一個數學家在紙上打草稿「浪費」了演算紙而不付他薪水。思考 Token 就是 AI 的草稿紙——它的成本，換來的是準確的答案。</p>
+    </aside>
+
+    <h3>從初代推理到「適應性思考」的進化路徑</h3>
+
+    <div class="stack-layers">
+      <div class="stack-layer reveal">
+        <div class="layer-num">I</div>
+        <div class="layer-body"><strong>初代推理模型（First-gen Reasoning）</strong><p>固定流程：長時間思考 → 一連串工具呼叫 → 輸出答案。僵化、低效，不符合人類的工作方式。</p></div>
+      </div>
+      <div class="stack-layer reveal">
+        <div class="layer-num">II</div>
+        <div class="layer-body"><strong>交織思考（Interleaved Thinking）</strong><p>「想一步、做一步」。每次工具呼叫後都加入一個思考步驟，更接近人類「做→想→做→想」的迭代工作模式。</p></div>
+      </div>
+      <div class="stack-layer reveal">
+        <div class="layer-num">III</div>
+        <div class="layer-body"><strong>適應性思考（<span class="term" data-def="Adaptive Thinking：模型自主決定在每個時刻該思考、呼叫工具、還是直接輸出，取得 Pareto 效率最優解。">Adaptive Thinking</span>）← 當前技術前沿</strong><p>模型自主決定：在每個時刻，是思考、呼叫工具，還是直接輸出文字？甚至在極簡問題（如 1+1=?）中完全不思考。各項評測中的 Pareto 效率完勝前代。</p></div>
+      </div>
+    </div>
+
+    <div class="pullquote">
+      <p><strong>"Adaptive thinking isn't a model reader — we're not classifying the request that comes through the door. Instead it's actually telling Claude: 'Hey you have this thinking tool, you can think at any point, or not at all if you don't need to.'"</strong>
+      <span class="zh">「適應性思考不是分類器——我們不是在對進來的請求做分類。而是告訴 Claude：你有這個思考工具，你可以在任何時候思考，或者如果不需要的話，完全不思考。」</span></p>
+      <cite>— Alexander Bricken</cite>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · Adaptive Thinking 為什麼是突破？</span>
+      <h5>從「被迫思考」到「選擇性思考」</h5>
+      <p>想像你有一個員工，每次你說完一句話，他都必須先在腦中演算五分鐘才能回答你——即使你只是問他幾點了。這就是 Interleaved Thinking 的問題。</p>
+      <p>Adaptive Thinking 讓 Claude 能像人類一樣：簡單問題立即回答、困難問題充分思考。</p>
+      <ul>
+        <li>問：「1+1=?」→ 不思考，直接輸出 2</li>
+        <li>問：「重構這個安全系統的架構」→ 深度思考，多次呼叫工具，反覆迭代</li>
+      </ul>
+      <p>這就是為什麼 Adaptive Thinking 在所有評測中都達到 Pareto 效率優勢——它把算力用在真正需要的地方。</p>
+    </aside>
+
+    <h3>思考工具的類比：你不會告訴隊友「不要思考」</h3>
+    <p>Alexander 用了一個精彩的類比來說明為什麼「思考開關」是錯誤的設計哲學：</p>
+    <div class="story">
+      <span class="story-tag">類比思維 · 你不會這樣管你的員工</span>
+      <h4>「關掉你的內心獨白，直接給我答案」</h4>
+      <p>試想：你給一位員工一個複雜的知識工作任務，然後告訴他「不要想太多，直接輸出」——這顯然荒謬。</p>
+      <p>同樣的道理，對 AI 搜尋工具的管理模式是：我們不會說「永遠不要搜尋網頁」或「永遠都要搜尋網頁」，我們只是給 Claude 一個搜尋工具，讓它自己判斷何時需要搜尋。</p>
+      <p><em>「Thinking」就是 Claude 的「搜尋自己的推理空間」的工具。正確的做法是給它這個工具，然後交由 Adaptive Thinking 自主管理——而不是設一個讓用戶手動開關的按鈕。」</em></p>
+    </div>
+  </section>
+
+</div><!-- end panel-1 -->
+
+<!-- ═══════════════════ TAB III: Effort 決策框架 ═══════════════════ -->
+<div class="tab-panel" id="panel-2">
+
+  <section class="chapter reveal">
+    <span class="roman">III</span>
+    <h2>Effort 等級與決策矩陣</h2>
+    <p class="lede">從 Low 到 Max，每個 Effort 等級都有其最佳適用場景。Alexander 給出了明確的工程黃金法則：永遠不要盲目使用 Max，永遠不要低估 Extra High 的 Pareto 價值。</p>
+
+    <h3>五級 Effort 的效能與成本分布</h3>
+    <div class="effort-chart" id="effortChart">
+      <div class="effort-row">
+        <div class="effort-label">Low</div>
+        <div class="effort-track"><div class="effort-fill" data-w="18" data-text="分類 / 摘要 / 低延遲"></div></div>
+        <div class="effort-tokens">~4,600T</div>
+      </div>
+      <div class="effort-row">
+        <div class="effort-label">Medium</div>
+        <div class="effort-track"><div class="effort-fill" data-w="35" data-text="一般對話 / 簡單推理"></div></div>
+        <div class="effort-tokens">~9,000T</div>
+      </div>
+      <div class="effort-row">
+        <div class="effort-label">High</div>
+        <div class="effort-track"><div class="effort-fill" data-w="55" data-text="有智能需求的業務任務"></div></div>
+        <div class="effort-tokens">~18,000T</div>
+      </div>
+      <div class="effort-row highlight">
+        <div class="effort-label">Extra High ★</div>
+        <div class="effort-track"><div class="effort-fill" data-w="74" data-text="預設 · Pareto 最優"></div></div>
+        <div class="effort-tokens">~28,000T</div>
+      </div>
+      <div class="effort-row">
+        <div class="effort-label">Max</div>
+        <div class="effort-track"><div class="effort-fill" data-w="100" data-text="極難任務 · 邊際遞減"></div></div>
+        <div class="effort-tokens">~46,000T+</div>
+      </div>
+    </div>
+    <p style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-faint);margin-top:8px;">★ Extra High = Claude Code &amp; Claude.ai 官方預設值。Token 數為示意估算。</p>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 什麼是 Intelligence-bound 任務？</span>
+      <h5>「智能受限任務」vs「速度受限任務」</h5>
+      <p>有些任務需要真正的邏輯智能，有些任務只需要快速完成。</p>
+      <ul>
+        <li><strong>Intelligence-bound（智能受限）：</strong>撰寫複雜報告、設計系統架構、分析多層次因果關係——答案的品質直接取決於「想得夠不夠透徹」</li>
+        <li><strong>Speed/Latency-bound（速度受限）：</strong>分類一條評論是正面/負面、抽取 PDF 裡的日期欄位、即時回答用戶簡單問題</li>
+      </ul>
+      <p>只有 Intelligence-bound 任務才值得用高 Effort。用 Max Effort 做分類任務，就像開跑車去買菜——貴而且沒意義。</p>
+    </aside>
+
+    <h3>神奇寶貝紅版測試：Low Effort 的意外天才策略</h3>
+    <div class="story">
+      <span class="story-tag">內部評測 · 低算力的創意突破</span>
+      <h4>當 Claude 在神奇寶貝遊戲裡發明了「Speedrun 策略」</h4>
+      <p>Anthropic 內部的「Claude 玩神奇寶貝紅版」評測，是 Alexander 最喜歡分享的案例之一。目標是讓 Claude 在不輔助的情況下打敗四天王（Elite 4）。</p>
+      <p>在 <span class="term" data-def="Low Effort：最低推理等級，模型使用最少 Token 思考，速度最快，適合延遲敏感型任務。">Low Effort</span> 條件下，Claude 發展出了一套人類玩家也沒想到的「Speed Run」策略：</p>
+      <ul>
+        <li>大量使用「驅蟲噴霧（Repels）」避免野外遇敵</li>
+        <li>狂喝「藥水（Potions）」避免回神奇寶貝中心耽誤時間</li>
+        <li>遇到不必要的戰鬥一律使用「逃跑」</li>
+      </ul>
+      <p><em>這個故事告訴我們：限制算力，有時反而能激發出意想不到的「捷徑思維」（Attractor States）。當大腦不能暴力計算時，它會尋找最聰明的捷徑。</em></p>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 什麼是 Attractor States（吸引子狀態）？</span>
+      <h5>受限系統為什麼有時候更有創意？</h5>
+      <p>在動力學中，「吸引子」是系統在各種初始條件下都會傾向收斂的穩定狀態。在 AI 推理中，當 Effort 被限制時，模型會傾向找到「用最少步驟解決問題」的方法——這反而可能是最優雅的解法。</p>
+      <ul>
+        <li>高 Effort：廣泛探索所有可能性，然後選最好的</li>
+        <li>低 Effort：快速找到「局部最優」，往往是人類直覺上的「捷徑」</li>
+      </ul>
+      <p>神奇寶貝案例說明：有時候，限制本身就是設計的一部分。</p>
+    </aside>
+
+    <h3>Effort 選擇的工程法則（快速指南）</h3>
+    <div class="duo">
+      <div class="duo-card reveal">
+        <h4>何時用 Max Effort</h4>
+        <p>你確定知道問題極其困難，且品質比成本重要。例如：一次性的架構決策分析、重大安全審查。<strong>不要設為預設值。</strong></p>
+      </div>
+      <div class="duo-card reveal">
+        <h4>何時用 Extra High（推薦預設）</h4>
+        <p>幾乎所有需要智能的業務任務。Claude Code 和 Claude.ai 的官方預設。Pareto 最優的智能 / 速度 / 成本三角平衡。</p>
+      </div>
+      <div class="duo-card reveal">
+        <h4>何時用 Low / Medium</h4>
+        <p>延遲敏感型任務：即時聊天介面、大量並行的分類工作、資料擷取管道。智能要求低，速度優先。</p>
+      </div>
+      <div class="duo-card reveal">
+        <h4>最佳實踐：先建 Eval</h4>
+        <p>在選擇 Effort 之前，先建立一組「極限難度測試案例」，在每個等級上跑評測，用數據決定 Effort 而非直覺。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter reveal">
+    <span class="roman">III</span>
+    <h2>Task Budgets：下一代預算控制</h2>
+    <p class="lede">除了 Effort 等級外，Anthropic 正在推出更精細的「任務預算（Task Budgets）」機制，讓開發者用金錢或時間來約束 Claude 的行為邊界。</p>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · Task Budgets 是什麼？</span>
+      <h5>給 AI 一個「不能超過」的預算上限</h5>
+      <p>現在 API 已有兩種控制機制：<strong>Effort 等級</strong>（相對等級，不精確）和 <strong>Budgets</strong>（絕對上限，更精確）。</p>
+      <ul>
+        <li>Max Token Constraints：「最多用 X 個 Token 來完成這個任務」</li>
+        <li>Task Budgets：「這個任務的 API 費用不能超過 $X」或「最多只能跑 Y 小時」</li>
+      </ul>
+      <p>未來的終極目標：用戶只需設定時間和金錢預算上限，Claude 自動在後台分配算力、決定何時思考多、何時思考少，最後在預算範圍內交付最好的成果。</p>
+    </aside>
+
+    <div class="pullquote">
+      <p><strong>"The ideal world is that you set the bar and the budget for the way Claude works. You should be able to say to Claude: 'Hey, I'm only going to spend this amount on whatever you do.' And then eventually Claude just knows how to allocate that compute appropriately."</strong>
+      <span class="zh">「理想中，你只需設定 Claude 工作的上限和預算。你可以告訴 Claude：嘿，我只願意在這件事上花這麼多。然後 Claude 自己知道如何分配算力。」</span></p>
+      <cite>— Alexander Bricken</cite>
+    </div>
+  </section>
+
+</div><!-- end panel-2 -->
+
+<!-- ═══════════════════ TAB IV: 模型 vs Effort ═══════════════════ -->
+<div class="tab-panel" id="panel-3">
+
+  <section class="chapter reveal">
+    <span class="roman">IV</span>
+    <h2>模型大小 vs. 推理 Effort：黃金決策矩陣</h2>
+    <p class="lede">當預算有限時，工程師面臨一個經典兩難：用小模型但加大 Effort，還是用大模型但降低 Effort？Alexander 用 Haiku 和 Opus 的直接對比，給出了明確的答案。</p>
+
+    <div class="model-compare">
+      <div class="model-card winner reveal">
+        <span class="model-tag">✓ 推薦</span>
+        <h4>大模型 + 低 Effort</h4>
+        <p><strong>Opus 4.7 × Low Effort</strong></p>
+        <p>車流模擬結果：清晰可辨，有車輛、有紅綠燈、有基本物理邏輯。</p>
+        <p>核心邏輯：大模型的「訓練算力（Train-time Compute）」已建立了強大的基礎智力結構，少量推理算力即可發揮。</p>
+      </div>
+      <div class="model-card loser reveal">
+        <span class="model-tag">✗ 不推薦（Intelligence任務）</span>
+        <h4>小模型 + 高 Effort</h4>
+        <p><strong>Haiku 4.5 × Max Effort</strong></p>
+        <p>車流模擬結果：「我甚至不確定那些是不是車」（Alexander 原話）。耗時與 Opus Low 相近，但品質遠遜。</p>
+        <p>核心邏輯：推理算力是基於模型基礎智力「放大」的——地基不夠，燒再多算力也無法突破上限。</p>
+      </div>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 為什麼小模型燒更多算力也沒用？</span>
+      <h5>Train-time Compute vs Test-time Compute 的關係</h5>
+      <p>把 AI 模型想像成一個「天資不同的學生」：</p>
+      <ul>
+        <li><strong>Train-time Compute（訓練算力）</strong>：決定學生的基礎天資——你用多少教科書、老師、訓練時間塑造了他</li>
+        <li><strong>Test-time Compute（推理算力）</strong>：決定學生考試前能思考多久——相當於「考前複習時間」</li>
+      </ul>
+      <p>一個基礎程度偏低的學生，給他再多的複習時間，也無法超越天資聰穎的學生只準備一晚的水準。推理算力（Test-time Compute）是基於模型基礎智力的「乘數」，而非「加法」。</p>
+    </aside>
+
+    <h3>何時小模型才有意義？</h3>
+    <div class="ledger">
+      <div class="ledger-row reveal">
+        <span class="ledger-num">✓</span>
+        <div class="ledger-body"><p><strong>非 Intelligence-bound 任務。</strong> 分類、摘要、結構化資料抽取——這些任務的「天花板」不取決於智能深度，小模型足矣。</p></div>
+      </div>
+      <div class="ledger-row reveal">
+        <span class="ledger-num">✓</span>
+        <div class="ledger-body"><p><strong>成本嚴格受限的高並發場景。</strong> 每秒數千次的即時分類請求，Haiku 的速度和成本優勢無可替代。</p></div>
+      </div>
+      <div class="ledger-row reveal">
+        <span class="ledger-num">✓</span>
+        <div class="ledger-body"><p><strong>建立評測基準線。</strong> 先跑 Haiku，了解任務的基礎難度和性能下限，再決定是否升級到 Sonnet 或 Opus。</p></div>
+      </div>
+      <div class="ledger-row reveal">
+        <span class="ledger-num">✗</span>
+        <div class="ledger-body"><p><strong>所有需要邏輯推理、創意或複雜決策的任務。</strong> 這裡「大模型 + Extra High Effort」是唯一正確的起點。</p></div>
+      </div>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 如何判斷任務是否 Intelligence-bound？</span>
+      <h5>一個簡單的自測問題</h5>
+      <p>問自己：「如果我請一個聰明的大學生做這個任務，他的輸出品質會明顯優於一個剛畢業的高中生嗎？」</p>
+      <ul>
+        <li>是 → Intelligence-bound → 用大模型</li>
+        <li>否 → Speed/Simplicity-bound → 小模型也行</li>
+      </ul>
+      <p>例：「幫我把這個 JSON 格式化」→ 否（任何人都能做）→ Haiku OK。「幫我分析這個商業模式的競爭風險」→ 是（需要商業洞察力）→ Opus。</p>
+    </aside>
+
+    <h3>實際建議：由小而大，用 Eval 說話</h3>
+    <p>Alexander 的工程師建議：</p>
+    <div class="stack-layers">
+      <div class="stack-layer reveal">
+        <div class="layer-num">1</div>
+        <div class="layer-body"><strong>建立代表性測試集</strong><p>挑選 30-50 個「你的用例中最困難的問題」，這是 Eval 的核心——不代表性的測試，得不到代表性的結論。</p></div>
+      </div>
+      <div class="stack-layer reveal">
+        <div class="layer-num">2</div>
+        <div class="layer-body"><strong>在所有組合上跑測試</strong><p>理想情況：Haiku / Sonnet / Opus × Low / Extra High / Max，共 9 個組合。看哪個組合的品質超過你的「可接受門檻」且成本最低。</p></div>
+      </div>
+      <div class="stack-layer reveal">
+        <div class="layer-num">3</div>
+        <div class="layer-body"><strong>從 Extra High 開始，往下降低</strong><p>如果你沒有 Eval，就從 Opus + Extra High 開始。這是最安全的預設。當你確認 High 或 Medium 也夠用時，再降 Effort 節省成本。</p></div>
+      </div>
+    </div>
+
+    <div class="pullquote">
+      <p><strong>"You should enable Claude that space to reason — give it the scratch pad so it knows that it can use that thinking tool when it needs to. And when in doubt, go with Extra High."</strong>
+      <span class="zh">「你應該給 Claude 推理的空間——讓它有草稿紙，讓它知道需要時可以用思考工具。有疑問的時候，就選 Extra High。」</span></p>
+      <cite>— Alexander Bricken</cite>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 什麼是 Eval（評測集）？</span>
+      <h5>為什麼你的直覺無法替代評測數據？</h5>
+      <p>Eval（Evaluation Set）是一組「你事先知道正確答案」的測試問題。你用模型跑這些問題，看它答對幾題，以此判斷這個模型+配置對你的用例有多好。</p>
+      <ul>
+        <li>沒有 Eval：「我覺得 Extra High 比較好」（直覺，不可信）</li>
+        <li>有 Eval：「Extra High 在我的 47 題測試集上準確率 89%，High 是 84%，差距明顯」（數據，可信）</li>
+      </ul>
+      <p>Alexander 強調：「最難的評測永遠是最好的評測」——測試邊緣案例，才能真正了解系統的能力上限。</p>
+    </aside>
+  </section>
+
+</div><!-- end panel-3 -->
+
+<!-- ═══════════════════ TAB V: 思考題 ═══════════════════ -->
+<div class="tab-panel" id="panel-4">
+
+  <section class="chapter reveal">
+    <span class="roman">V</span>
+    <h2>思考題與討論方向</h2>
+    <p class="lede">這場演講觸及了 AI 代理人架構的核心設計哲學。以下六個問題，邀請你超越「怎麼用」，思考「為什麼是這樣」。</p>
+
+    <div class="discuss reveal">
+      <p>Q1 — Alexander 說「思考開關是一個糟糕的代理指標」。許多現有 AI 產品依然提供這個開關。你認為為什麼這個「錯誤設計」這麼普遍？它滿足了用戶什麼心理需求？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>1. 歷史對照：</strong>對比 CPU 時代的「效能模式/省電模式」切換——用戶習慣了用明確的開關控制機器的「努力程度」，這個心智模型被移植到 AI 了嗎？</li>
+          <li><strong>2. 講者隱含論點：</strong>Alexander 認為正確的抽象層是「工具的存在與否」而非「工具的開關」。這個差異在工程設計上意味著什麼不同的 API 介面？</li>
+          <li><strong>3. 職涯啟發：</strong>如果你是 AI 產品 PM，你如何設計一個「讓用戶感覺有控制感，同時又不破壞模型最優表現」的 UI？</li>
+          <li><strong>4. 反向思考：</strong>有沒有合理場景下，「關閉思考空間」是有意義的？例如：嚴格限制輸出格式、不允許任何推理過程暴露給用戶的企業應用場景？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss reveal">
+      <p>Q2 — 「大模型 + 低 Effort 完勝小模型 + 高 Effort」的結論看似直觀，但實際上挑戰了許多工程師「榨取小模型潛力」的優化直覺。你在自己的工作或學習中，有沒有遇到過類似的「天花板效應」——在資源有限的基礎上投入再多也無法突破？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>1. 量化歷史案例：</strong>對比「Google 在 PageRank 年代以少量計算擊敗雅虎的暴力爬蟲策略」——有時候架構正確比資源多更重要。這個案例的邏輯和 Train-time vs Test-time Compute 的關係是什麼？</li>
+          <li><strong>2. 隱含論點：</strong>Alexander 暗示的工程原則是「先選對工具，再優化用法」。在軟體工程中，這對應到什麼設計決策？</li>
+          <li><strong>3. 職涯啟發：</strong>「先用大模型驗證 POC，再考慮降級優化」vs「從小模型開始成本最低」——你的公司現在採用哪個策略？兩者各有什麼風險？</li>
+          <li><strong>4. 反向思考：</strong>有沒有任務類型，「小模型 + 高 Effort」實際上優於「大模型 + 低 Effort」？例如：某些需要大量工具呼叫的流水線任務，小模型的延遲優勢是否能補足智能差距？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss reveal">
+      <p>Q3 — 神奇寶貝速通案例顯示：限制算力有時反而激發出更有創意的「吸引子策略」。這個現象在其他認知系統（人類、組織）中是否也存在對應？約束究竟是阻礙還是設計工具？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>1. 歷史量化：</strong>「16-12-8 規則」（Parkinson's Law：工作會膨脹填滿所有可用時間）——給無限時間的設計師 vs 給 2 週期限的設計師，誰的創意更聚焦？</li>
+          <li><strong>2. 隱含論點：</strong>Alexander 沒有明說的是：Low Effort 不是「退化版的高 Effort」，而是「不同的問題解法空間」。這對 AI 代理人設計有什麼啟示？</li>
+          <li><strong>3. 職涯啟發：</strong>在你的工作中，人為設定「算力/資源限制」（Sprint 時間箱、最大行數限制、預算上限）是否曾帶來意想不到的創意解方？</li>
+          <li><strong>4. 反向思考：</strong>如果「低 Effort 的吸引子策略」在某些任務上效果更好，那 AI 產品的「自動 Effort 調配」系統應該如何處理「發現低 Effort 意外更優」的情況？是回報給用戶，還是自動收斂？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss reveal">
+      <p>Q4 — Alexander 預告的未來是：用戶只需給定「時間預算」和「金錢預算」，Claude 自動在後台分配算力。這個設計把「算力資源分配決策」從工程師手中移交給 AI。你認為這個轉變的邊界在哪裡？哪些決策必須保留人工控制？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>1. 歷史對照：</strong>雲端自動擴展（Auto Scaling）把伺服器擴縮決策交給演算法已經普及多年——但仍保留「最大實例數量上限」給人工設定。這個「留一條底線」的原則，在 AI 算力分配上應如何實現？</li>
+          <li><strong>2. 隱含論點：</strong>「任務完成品質」的評估標準誰來定義？如果 Claude 認為某個子任務需要 80% 的預算，但用戶認為那個子任務只值 20%，誰說了算？</li>
+          <li><strong>3. 職涯啟發：</strong>「AI 自主分配算力」這個趨勢，對 AI 工程師的技能需求意味著什麼轉變？從「優化 Prompt 和 Effort 參數」到「設計評估準則和預算約束」——這是技能升級還是降級？</li>
+          <li><strong>4. 反向思考：</strong>考慮安全性與可預測性：在金融交易、醫療診斷等高風險場景，「AI 自動決定投入多少算力」是否可接受？什麼情況下算力自適應反而是風險因子？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss reveal">
+      <p>Q5 — Mythos 模型能完成 16 小時人類工作、50% 準確率。這個數字意味著：如果你交給它 100 個獨立任務，有 50 個你必須重新做。在什麼樣的商業場景下，這個準確率是「夠用」的？在哪些場景下是絕對無法接受的？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>1. 量化歷史：</strong>郵件垃圾過濾在早期準確率就接近 99%，但如果醫療診斷 AI 有 50% 的誤診率，後果是什麼？兩者的「可接受失敗成本」如何量化？</li>
+          <li><strong>2. 隱含論點：</strong>Alexander 展示的是「絕對準確率 50%」——但「人工審核成本」和「無 AI 的效率成本」之間的比較才是真正的決策依據。如何建立這個比較框架？</li>
+          <li><strong>3. 職涯啟發：</strong>你目前工作中最耗時的重複性任務，如果 AI 能以 50% 準確率完成，你的工作模式會如何改變？你是否願意成為「AI 品管員」？</li>
+          <li><strong>4. 反向思考：</strong>「AI 自主工作 16 小時 + 50% 準確率」vs「AI 每步都問人確認 + 100% 準確率」——在長期工作關係中，哪種模式更能建立信任？前者更高效，後者更可靠，你會選哪個？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss reveal">
+      <p>Q6 — Adaptive Thinking 的核心是：模型自主決定何時思考、何時行動、何時輸出。這種「元認知自主性」在哲學上非常有趣——一個系統知道自己何時需要思考，這是否構成某種形式的「自我意識」？它與人類的元認知有何本質差異？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>1. 哲學量化：</strong>Metacognition（元認知）在認知心理學中被定義為「對自己思考過程的認知」。Adaptive Thinking 是真正的元認知，還是「模擬元認知的函數優化」？兩者在工程上有什麼可測量的差異？</li>
+          <li><strong>2. 隱含論點：</strong>Alexander 說 Adaptive Thinking「反映了人類的工作方式」。這個類比是有用的工程直覺，還是危險的擬人化？在 AI 產品設計中，什麼情況下擬人化類比有益，什麼情況下有害？</li>
+          <li><strong>3. 職涯啟發：</strong>如果 AI 能自主決定何時「思考更多」，那麼 AI 系統設計師的角色是否從「決定者」轉變為「環境創造者」——不是告訴 AI 怎麼做，而是創造讓 AI 能做出好決定的環境條件？</li>
+          <li><strong>4. 反向思考：</strong>從可解釋性（Explainability）的角度：當 AI 自主決定「這個任務不需要思考」而直接輸出時，如果輸出是錯的，誰負責？系統設計者、用戶、還是模型本身？</li>
+        </ul>
+      </details>
+    </div>
+
+    <h3>名詞速查表</h3>
+    <div class="ledger">
+      <div class="ledger-row"><span class="ledger-num">A</span><div class="ledger-body"><p><strong>Adaptive Thinking（適應性思考）：</strong> 模型自主決定在每個時刻是否思考、呼叫工具或輸出文字的最新架構，Pareto 效率優於 Interleaved Thinking。</p></div></div>
+      <div class="ledger-row"><span class="ledger-num">B</span><div class="ledger-body"><p><strong>Attractor States（吸引子狀態）：</strong> 在受限條件下，系統傾向收斂到的穩定解法模式。低 Effort 下的神奇寶貝 Speed Run 策略即為一例。</p></div></div>
+      <div class="ledger-row"><span class="ledger-num">C</span><div class="ledger-body"><p><strong>Effort Level（努力度等級）：</strong> 從 Low 到 Max 的五段式推理深度控制，決定 Claude 在一次推理中消耗的 Token 數量。Extra High 為官方 Pareto 預設。</p></div></div>
+      <div class="ledger-row"><span class="ledger-num">D</span><div class="ledger-body"><p><strong>Intelligence-bound（智能受限）：</strong> 任務的最終品質取決於推理深度而非速度。此類任務必須優先選大模型，不適合以小模型＋高 Effort 替代。</p></div></div>
+      <div class="ledger-row"><span class="ledger-num">E</span><div class="ledger-body"><p><strong>Interleaved Thinking（交織思考）：</strong> 在每次工具呼叫後插入思考步驟的架構，介於初代推理模型與 Adaptive Thinking 之間。</p></div></div>
+      <div class="ledger-row"><span class="ledger-num">F</span><div class="ledger-body"><p><strong>Meter Benchmark：</strong> Anthropic 內部追蹤「AI 自主完成多少小時人類知識工作」的評測框架。Mythos 模型當前成績為 16 小時 × 50% 準確率。</p></div></div>
+      <div class="ledger-row"><span class="ledger-num">G</span><div class="ledger-body"><p><strong>Task Budgets（任務預算）：</strong> Anthropic API 中的新功能，允許開發者以金錢或時間為單位約束 Claude 在單次任務中的最大算力消耗。</p></div></div>
+      <div class="ledger-row"><span class="ledger-num">H</span><div class="ledger-body"><p><strong>Test-time Compute / Inference-time Compute（推理時算力）：</strong> 模型在回答問題「當下」消耗的算力，與訓練時算力（Train-time Compute）相對。消耗更多 Token 推理 → 更高品質輸出（對數線性成長）。</p></div></div>
+      <div class="ledger-row"><span class="ledger-num">I</span><div class="ledger-body"><p><strong>Thinking Space（思考空間）：</strong> Claude 推理過程中的「草稿紙」，用於在正式輸出前進行邏輯推演、計畫與驗證。關閉它相當於奪走模型的核心推理工具。</p></div></div>
+    </div>
+  </section>
+
+</div><!-- end panel-4 -->
+
+</div><!-- end container -->
+</article>
+
+<!-- BACK TO TOP -->
+<button class="back-top" id="backTop" title="回到頂部" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h6>Event</h6>
+        <p>Code with Claude London 2026<br>Anthropic Developer Conference<br>May 19–20, 2026 · London</p>
+      </div>
+      <div class="footer-col">
+        <h6>This Issue</h6>
+        <ul>
+          <li>No. 02 · Day 2 Talk 1</li>
+          <li>The Thinking Lever</li>
+          <li>Alexander Bricken</li>
+          <li>Anthropic Applied AI Research</li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h6>Content</h6>
+        <ul>
+          <li>9 primers · 3 stories</li>
+          <li>6 guided questions</li>
+          <li>3 interactive visuals</li>
+          <li>Full transcript included</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © The Claude Dispatch · Code with Claude London 2026 · Set in Fraunces, Newsreader &amp; JetBrains Mono · 9 primers · 3 stories · 6 guided questions
+    </div>
+  </div>
+</footer>
+
+<script>
+// Reading progress
+const prog = document.getElementById('progress');
+window.addEventListener('scroll', () => {
+  const h = document.documentElement;
+  const pct = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100;
+  prog.style.width = pct + '%';
+});
+
+// Cursor follower
+const cursor = document.getElementById('cursor');
+let mx = -100, my = -100;
+document.addEventListener('mousemove', e => {
+  mx = e.clientX; my = e.clientY;
+  cursor.style.left = mx + 'px';
+  cursor.style.top = my + 'px';
+});
+document.querySelectorAll('button,a,.duo-card,.stat-cell,.ledger-row,.pullquote,.term').forEach(el => {
+  el.addEventListener('mouseenter', () => cursor.classList.add('hover'));
+  el.addEventListener('mouseleave', () => cursor.classList.remove('hover'));
+});
+
+// Tabs with sliding indicator
+const tabBtns = document.querySelectorAll('.tab-btn');
+const panels = document.querySelectorAll('.tab-panel');
+const indicator = document.getElementById('tabIndicator');
+
+function setIndicator(btn) {
+  indicator.style.left = btn.offsetLeft + 'px';
+  indicator.style.width = btn.offsetWidth + 'px';
+}
+setIndicator(document.querySelector('.tab-btn.active'));
+
+tabBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    tabBtns.forEach(b => b.classList.remove('active'));
+    panels.forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    setIndicator(btn);
+    triggerReveal();
+    animateEffortBars();
+  });
+});
+
+// Scroll reveal
+function triggerReveal() {
+  document.querySelectorAll('.reveal').forEach(el => {
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight * 0.92) el.classList.add('visible');
+  });
+}
+window.addEventListener('scroll', triggerReveal);
+triggerReveal();
+
+// Effort bar animation
+function animateEffortBars() {
+  document.querySelectorAll('.effort-fill').forEach(fill => {
+    const w = fill.dataset.w;
+    fill.style.width = '0%';
+    setTimeout(() => { fill.style.width = w + '%'; }, 100);
+  });
+}
+
+// IntersectionObserver for effort chart
+const chartObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { animateEffortBars(); chartObs.disconnect(); }
+  });
+}, { threshold: 0.3 });
+const effortChart = document.getElementById('effortChart');
+if (effortChart) chartObs.observe(effortChart);
+
+// Back to top visibility
+const backTop = document.getElementById('backTop');
+backTop.style.display = 'none';
+window.addEventListener('scroll', () => {
+  backTop.style.display = window.scrollY > 400 ? 'flex' : 'none';
+});
+</script>
+<style>#home-btn{position:fixed;bottom:32px;left:32px;width:44px;height:44px;border-radius:50%;background:var(--cardinal,#8c1515);color:var(--paper,#efe8d6);display:flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:3px 3px 0 var(--ink,#1a1410);z-index:901;font-size:20px;transition:transform .2s;}#home-btn:hover{transform:translateY(-4px);}#home-btn::after{content:'';position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;color:var(--ink-faint,#7a6651);opacity:0;transition:opacity .2s;}#home-btn:hover::after{content:'HOME';opacity:1;}</style>
+<a id='home-btn' href='./index.html' title='Back to Index'>&#8962;</a></body>
+</html>

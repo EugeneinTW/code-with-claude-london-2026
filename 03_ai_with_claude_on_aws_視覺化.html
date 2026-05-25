@@ -1,0 +1,855 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI with Claude on AWS · The Claude Dispatch №03 — Antonio Rodriguez</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper:        #efe8d6;
+    --paper-deep:   #e4d9be;
+    --paper-edge:   #d6c89f;
+    --ink:          #1a1410;
+    --ink-soft:     #4a3a2b;
+    --ink-faint:    #7a6651;
+    --cardinal:     #8c1515;
+    --cardinal-dk:  #5e0e0e;
+    --cardinal-soft:#b34646;
+    --gold:         #b48729;
+    --gold-soft:    #d8b261;
+    --gold-bg:      #f7eccd;
+    --moss:         #586a3f;
+    --moss-bg:      #e6e6c9;
+    --rule:         rgba(26,20,16,0.14);
+    --rule-soft:    rgba(26,20,16,0.07);
+    --aws-orange:   #c7511f;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  *::selection { background:var(--cardinal); color:var(--paper); }
+  html { scroll-behavior:smooth; }
+  body {
+    font-family:'Newsreader','Noto Serif TC',Georgia,serif;
+    font-optical-sizing:auto;
+    background:var(--paper);
+    color:var(--ink);
+    line-height:1.65;
+    font-size:17px;
+    overflow-x:hidden;
+    cursor:default;
+  }
+  body::before {
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:999;
+    background-image:
+      radial-gradient(rgba(26,20,16,0.04) 1px, transparent 1px),
+      radial-gradient(rgba(26,20,16,0.025) 1px, transparent 1px);
+    background-size:3px 3px,7px 7px;
+    background-position:0 0,1px 1px;
+    opacity:.55; mix-blend-mode:multiply;
+  }
+
+  .progress { position:fixed; top:0; left:0; height:3px; width:0%; background:linear-gradient(90deg,var(--cardinal-dk),var(--cardinal),var(--gold)); z-index:1000; transition:width .12s linear; }
+  .cursor-dot { position:fixed; top:0; left:0; width:10px; height:10px; border:1.5px solid var(--cardinal); border-radius:50%; pointer-events:none; z-index:998; transform:translate(-50%,-50%); transition:width .25s ease,height .25s ease,background .25s ease,opacity .3s; mix-blend-mode:multiply; opacity:.8; }
+  .cursor-dot.hover { width:38px; height:38px; background:rgba(140,21,21,0.12); }
+  @media(hover:none){ .cursor-dot{display:none;} }
+
+  .container { max-width:1080px; margin:0 auto; padding:0 32px; }
+
+  .masthead { border-bottom:1px solid var(--ink); padding:18px 0 14px; }
+  .masthead-inner { display:flex; align-items:baseline; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-soft); }
+  .masthead-title { font-family:'Fraunces',serif; font-weight:900; font-size:22px; letter-spacing:-.01em; color:var(--cardinal-dk); text-transform:none; font-variation-settings:"SOFT" 0; }
+  .masthead-meta { display:flex; gap:22px; }
+  .masthead-meta span:not(:last-child)::after { content:"·"; margin-left:22px; color:var(--ink-faint); }
+
+  .hero { padding:88px 0 72px; border-bottom:1px solid var(--ink); position:relative; background:radial-gradient(1200px 400px at 80% 20%,rgba(180,135,41,0.08),transparent 60%),radial-gradient(900px 600px at 10% 100%,rgba(140,21,21,0.06),transparent 60%); }
+  .hero-grid { display:grid; grid-template-columns:160px 1fr; gap:56px; align-items:start; }
+  .issue-stamp { font-family:'Fraunces',serif; font-weight:900; font-style:italic; font-size:72px; line-height:1; color:var(--cardinal); white-space:nowrap; text-shadow:2px 2px 0 var(--paper-edge),3px 3px 0 var(--cardinal-dk); transform:rotate(-4deg); transform-origin:center; font-variation-settings:"SOFT" 80,"opsz" 72; }
+  .issue-stamp small { display:block; font-family:'JetBrains Mono',monospace; font-size:13px; font-style:normal; font-weight:700; letter-spacing:.18em; color:var(--ink-soft); margin-top:8px; }
+  h1 { font-family:'Fraunces',serif; font-weight:900; font-size:clamp(34px,4.6vw,58px); line-height:1.12; letter-spacing:-.02em; font-variation-settings:"SOFT" 30,"opsz" 72; }
+  h1 em { font-style:italic; color:var(--cardinal); }
+  .deck { font-family:'Newsreader',serif; font-size:20px; line-height:1.5; color:var(--ink-soft); margin-top:18px; max-width:700px; font-style:italic; }
+  .byline { display:flex; align-items:center; gap:16px; margin-top:28px; padding-top:20px; border-top:1px solid var(--rule); font-family:'JetBrains Mono',monospace; font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint); flex-wrap:wrap; }
+  .byline-name { color:var(--ink-soft); font-weight:700; }
+  .toc-hint { margin-top:18px; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.12em; color:var(--ink-faint); }
+
+  .stat-strip { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid var(--ink); }
+  .stat-cell { padding:28px 24px; border-right:1px solid var(--rule); position:relative; cursor:default; }
+  .stat-cell:last-child { border-right:none; }
+  .stat-num { font-family:'Fraunces',serif; font-weight:900; font-size:38px; line-height:1; color:var(--cardinal); font-variation-settings:"SOFT" 0; }
+  .stat-label { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint); margin-top:6px; }
+  .stat-tip { display:none; position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%); background:var(--ink); color:var(--paper); font-family:'Newsreader',serif; font-size:13px; padding:10px 14px; border-radius:3px; white-space:normal; z-index:10; max-width:280px; line-height:1.5; }
+  .stat-tip::after { content:""; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:var(--ink); }
+  .stat-cell:hover .stat-tip { display:block; }
+
+  .nav-wrap { position:sticky; top:0; z-index:100; background:var(--paper-deep); border-bottom:1px solid var(--ink); }
+  .tab-nav { display:flex; gap:0; position:relative; overflow-x:auto; }
+  .tab-btn { font-family:'JetBrains Mono',monospace; font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint); padding:16px 24px; background:none; border:none; cursor:pointer; white-space:nowrap; transition:color .2s; }
+  .tab-btn.active { color:var(--cardinal); }
+  .tab-btn:hover { color:var(--ink-soft); }
+  .tab-indicator { position:absolute; bottom:0; height:2px; background:var(--cardinal); transition:left .3s cubic-bezier(.4,0,.2,1),width .3s cubic-bezier(.4,0,.2,1); }
+
+  article { padding:72px 0 96px; }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  .chapter { position:relative; margin-bottom:72px; padding-bottom:72px; border-bottom:1px solid var(--rule); }
+  .chapter:last-child { border-bottom:none; }
+  .roman { position:absolute; top:-8px; right:0; font-family:'Fraunces',serif; font-weight:900; font-style:italic; font-size:220px; line-height:1; color:var(--ink); opacity:.045; pointer-events:none; font-variation-settings:"SOFT" 0,"opsz" 144; z-index:0; }
+  h2 { font-family:'Fraunces',serif; font-weight:900; font-size:44px; line-height:1.15; letter-spacing:-.02em; font-variation-settings:"SOFT" 30,"opsz" 48; position:relative; z-index:1; }
+  h2::before { content:""; display:block; width:32px; height:3px; background:var(--cardinal); margin-bottom:14px; }
+  h3 { font-family:'Fraunces',serif; font-weight:700; font-size:22px; line-height:1.3; margin:32px 0 12px; font-variation-settings:"SOFT" 20,"opsz" 24; }
+  h4 { font-family:'Fraunces',serif; font-weight:700; font-size:18px; line-height:1.3; margin:24px 0 8px; font-variation-settings:"SOFT" 20,"opsz" 20; }
+  h5 { font-family:'Fraunces',serif; font-weight:600; font-size:18px; font-style:italic; margin:0 0 8px; font-variation-settings:"SOFT" 40,"opsz" 18; }
+  p { max-width:760px; margin-top:16px; }
+  p.lede { font-size:19px; color:var(--ink-soft); line-height:1.6; }
+  ul, ol { max-width:720px; margin-top:12px; padding-left:24px; }
+  li { margin-bottom:8px; }
+
+  .pullquote { margin:40px 0; padding:28px 36px; border-left:4px solid var(--cardinal); background:var(--gold-bg); max-width:820px; position:relative; }
+  .pullquote::before { content:"\201C"; font-family:'Fraunces',serif; font-size:80px; line-height:1; color:var(--cardinal); opacity:.18; position:absolute; top:-10px; left:16px; font-style:italic; transition:transform .3s,opacity .3s; }
+  .pullquote:hover::before { transform:rotate(-6deg); opacity:.4; }
+  .pullquote p { font-family:'Newsreader',serif; font-size:20px; font-style:italic; line-height:1.55; color:var(--ink-soft); margin:0; max-width:100%; }
+  .pullquote cite { display:block; margin-top:12px; font-family:'JetBrains Mono',monospace; font-size:11.5px; letter-spacing:.1em; color:var(--ink-faint); }
+  .zh { display:block; margin-top:10px; padding-top:10px; border-top:1px dashed var(--rule); font-style:normal; font-size:14px; color:var(--ink-faint); }
+
+  aside.primer { background:var(--gold-bg); border:1px solid var(--gold-soft); border-left:4px solid var(--gold); padding:24px 28px; margin:28px 0; max-width:820px; border-radius:2px; }
+  .primer-tag { font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--gold); display:block; margin-bottom:10px; }
+  aside.primer h5 { color:var(--ink); }
+  aside.primer p { font-size:15.5px; margin-top:10px; max-width:100%; }
+  aside.primer ul { font-size:15.5px; }
+
+  .story { border:1px solid var(--rule); border-top:3px solid var(--cardinal); padding:28px 32px; margin:32px 0; max-width:820px; background:rgba(255,255,255,0.25); }
+  .story-tag { font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cardinal-soft); display:block; margin-bottom:12px; }
+  .story h4 { margin-top:0; font-style:italic; }
+  .story p { font-size:15.5px; max-width:100%; }
+
+  .term { background:rgba(180,135,41,0.18); border-bottom:1.5px dashed var(--cardinal-soft); cursor:help; position:relative; padding:0 2px; transition:background .2s; }
+  .term:hover { background:rgba(180,135,41,0.38); }
+  .term::after { content:attr(data-def); display:none; position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); background:var(--ink); color:var(--paper); font-family:'Newsreader',serif; font-size:13px; font-style:normal; padding:10px 14px; border-radius:3px; white-space:normal; min-width:220px; max-width:320px; z-index:50; line-height:1.5; pointer-events:none; }
+  .term:hover::after { display:block; }
+
+  .duo { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin:32px 0; max-width:860px; }
+  .duo-card { padding:22px 26px; border:1px solid var(--rule); border-top:3px solid var(--ink); background:var(--paper-deep); cursor:default; transition:transform .2s,box-shadow .2s; }
+  .duo-card:hover { transform:translateY(-4px); box-shadow:4px 4px 0 var(--ink); }
+  .duo-card h4 { margin:0 0 10px; font-size:16px; }
+  .duo-card p { font-size:14.5px; margin:0; max-width:100%; }
+  @media(max-width:640px){ .duo{grid-template-columns:1fr;} }
+
+  .ledger { margin:28px 0; max-width:820px; }
+  .ledger-row { display:grid; grid-template-columns:52px 1fr; gap:0; border-bottom:1px solid var(--rule); padding:18px 0; position:relative; overflow:hidden; transition:padding .2s; }
+  .ledger-row::before { content:""; position:absolute; left:0; top:0; bottom:0; width:0; background:var(--cardinal); transition:width .3s ease; }
+  .ledger-row:hover::before { width:3px; }
+  .ledger-row:hover { padding-left:12px; }
+  .ledger-num { font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:var(--ink-faint); padding-top:2px; transition:color .2s; }
+  .ledger-row:hover .ledger-num { color:var(--cardinal); }
+  .ledger-body p { margin:0; font-size:15.5px; max-width:100%; }
+
+  .stack-layers { margin:32px 0; max-width:680px; }
+  .stack-layer { display:grid; grid-template-columns:44px 1fr; gap:0; padding:18px 20px; border:1px solid var(--rule); border-bottom:none; position:relative; overflow:hidden; transition:padding-left .2s; cursor:default; }
+  .stack-layer:last-child { border-bottom:1px solid var(--rule); }
+  .stack-layer::before { content:""; position:absolute; left:0; top:0; bottom:0; width:0; background:var(--cardinal); transition:width .3s ease; }
+  .stack-layer:hover::before { width:4px; }
+  .stack-layer:hover { padding-left:28px; }
+  .layer-num { font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:var(--cardinal); opacity:.4; font-style:italic; transition:opacity .2s; padding-top:3px; }
+  .stack-layer:hover .layer-num { opacity:1; }
+  .layer-body strong { display:block; font-size:15px; margin-bottom:4px; }
+  .layer-body p { margin:0; font-size:14px; max-width:100%; color:var(--ink-soft); }
+
+  /* ACCESS METHOD CARDS */
+  .access-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin:32px 0; max-width:900px; }
+  .access-card { padding:24px 22px; border:1px solid var(--rule); border-top:4px solid var(--cardinal); background:var(--paper-deep); cursor:default; transition:transform .2s,box-shadow .2s; }
+  .access-card:hover { transform:translateY(-4px); box-shadow:4px 4px 0 var(--ink); }
+  .access-num { font-family:'JetBrains Mono',monospace; font-size:32px; font-weight:700; color:var(--cardinal); opacity:.3; line-height:1; margin-bottom:12px; }
+  .access-card h4 { margin:0 0 10px; font-size:15px; }
+  .access-card p { font-size:13.5px; color:var(--ink-soft); margin:6px 0; max-width:100%; }
+  .access-badge { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; display:inline-block; padding:2px 8px; margin-bottom:10px; background:var(--moss); color:var(--paper); }
+  @media(max-width:720px){ .access-grid{grid-template-columns:1fr;} }
+
+  /* SECURITY FEATURES */
+  .security-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin:32px 0; max-width:860px; }
+  .sec-card { padding:20px 24px; border:1px solid var(--rule); border-left:4px solid var(--gold); background:var(--gold-bg); }
+  .sec-icon { font-family:'JetBrains Mono',monospace; font-size:22px; margin-bottom:10px; }
+  .sec-card h4 { margin:0 0 8px; font-size:16px; }
+  .sec-card p { font-size:14px; color:var(--ink-soft); margin:0; max-width:100%; }
+  @media(max-width:640px){ .security-grid{grid-template-columns:1fr;} }
+
+  /* INVESTMENT BAR */
+  .invest-chart { margin:32px 0; max-width:740px; }
+  .invest-row { display:grid; grid-template-columns:160px 1fr 120px; gap:12px; align-items:center; margin-bottom:16px; }
+  .invest-label { font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.06em; color:var(--ink-soft); }
+  .invest-track { background:var(--paper-deep); height:28px; border:1px solid var(--rule); overflow:hidden; position:relative; }
+  .invest-fill { height:100%; background:linear-gradient(90deg,var(--cardinal-dk),var(--cardinal)); width:0; transition:width 1.5s ease; }
+  .invest-amount { font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:var(--cardinal); text-align:right; }
+
+  .discuss { border-left:3px solid var(--cardinal-soft); padding:18px 22px; margin:22px 0; background:var(--paper-deep); max-width:760px; }
+  .discuss p { margin:0 0 8px; font-size:15.5px; font-weight:600; max-width:100%; }
+  .discuss details summary { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--cardinal-soft); cursor:pointer; margin-top:6px; }
+  .discuss details ul { margin-top:10px; font-size:14px; color:var(--ink-soft); }
+  .discuss details li { margin-bottom:6px; }
+
+  .reveal { opacity:0; transform:translateY(22px); transition:opacity .6s ease,transform .6s ease; }
+  .reveal.visible { opacity:1; transform:none; }
+
+  .back-top { position:fixed; bottom:32px; right:32px; width:44px; height:44px; background:var(--cardinal); color:var(--paper); border:none; cursor:pointer; font-size:20px; display:flex; align-items:center; justify-content:center; box-shadow:4px 4px 0 var(--ink); transition:transform .2s,box-shadow .2s; z-index:90; }
+  .back-top:hover { transform:translateY(-4px); box-shadow:4px 8px 0 var(--ink); }
+
+  footer { border-top:2px solid var(--ink); padding:48px 0; background:var(--paper-deep); }
+  .footer-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:32px; }
+  .footer-col h6 { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:14px; }
+  .footer-col p,.footer-col li { font-size:13.5px; color:var(--ink-soft); line-height:1.7; }
+  .footer-col ul { list-style:none; padding:0; margin:0; }
+  .footer-bottom { margin-top:36px; padding-top:20px; border-top:1px solid var(--rule); font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.1em; color:var(--ink-faint); text-align:center; }
+  @media(max-width:900px){ .footer-grid{grid-template-columns:1fr;} .hero-grid{grid-template-columns:1fr;} .stat-strip{grid-template-columns:1fr 1fr;} }
+  @media(max-width:540px){ .container{padding:0 22px;} .stat-strip{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+<div class="cursor-dot" id="cursor"></div>
+
+<header class="masthead">
+  <div class="container">
+    <div class="masthead-inner">
+      <span class="masthead-title">The Claude Dispatch</span>
+      <div class="masthead-meta">
+        <span>Vol. I · No. 03</span>
+        <span>Code with Claude London 2026</span>
+        <span>May 20, 2026</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div class="issue-stamp">№03<small>DAY 2 · TALK 2</small></div>
+      <div>
+        <h1>AI with Claude <em>on AWS</em></h1>
+        <p class="deck">從原型到生產就緒的雲端之旅——AWS 如何透過 Project Rainier 晶片群、Zero Operator Access 安全架構，以及三種靈活接入管道，讓每一位開發者把 Claude 安全地帶進企業。</p>
+        <div class="byline">
+          <span>Speaker</span>
+          <span class="byline-name">Antonio Rodriguez</span>
+          <span>Developer &amp; Cloud Whisperer · Amazon Web Services</span>
+          <span>20 May 2026</span>
+        </div>
+        <p class="toc-hint">↓ I. 總覽 · II. 底層硬體 · III. 企業安全 · IV. 三種接入方式 · V. 思考題</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="stat-strip">
+  <div class="stat-cell">
+    <div class="stat-num">$千億+</div>
+    <div class="stat-label">Anthropic AWS 承諾用量</div>
+    <div class="stat-tip">Anthropic 已承諾在 AWS 上投入超過 1,000 億美元的基礎設施使用額度，支援 Claude 的訓練與全球推論服務。</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-num">3rd Gen</div>
+    <div class="stat-label">Trainium 客製晶片</div>
+    <div class="stat-tip">Amazon 自研第三代 Trainium 晶片，專為 Claude 模型的推論速度與 Token 成本效益進行底層優化，是 Project Rainier 的硬體核心。</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-num">Zero</div>
+    <div class="stat-label">Operator Access（人員觸及）</div>
+    <div class="stat-tip">Bedrock 最新推論引擎實施「零營運人員存取」：Amazon 或 Anthropic 的任何工程師都無法觸及正在運行的資料執行個體。</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-num">3</div>
+    <div class="stat-label">AWS 接入方式（業界最多）</div>
+    <div class="stat-tip">Bedrock API、Claude platform on AWS（新 GA）、Claude Desktop/Code，三種方式提供業界最完整的 Claude 部署選項。</div>
+  </div>
+</div>
+
+<nav class="nav-wrap">
+  <div class="container">
+    <div class="tab-nav" id="tabNav">
+      <button class="tab-btn active" data-tab="0">I · 總覽</button>
+      <button class="tab-btn" data-tab="1">II · 底層硬體</button>
+      <button class="tab-btn" data-tab="2">III · 企業安全</button>
+      <button class="tab-btn" data-tab="3">IV · 三種接入方式</button>
+      <button class="tab-btn" data-tab="4">V · 思考題</button>
+      <div class="tab-indicator" id="tabIndicator"></div>
+    </div>
+  </div>
+</nav>
+
+<article>
+<div class="container">
+
+<!-- ═══ TAB I: 總覽 ═══ -->
+<div class="tab-panel active" id="panel-0">
+
+  <section class="chapter reveal">
+    <span class="roman">I</span>
+    <h2>Better Together：三年的合作積累</h2>
+    <p class="lede">Antonio Rodriguez 以「雲端低語者」（Cloud Whisperer）自稱，三年前就開始推動 Anthropic 與 AWS 的深度整合。這場演講要回答的核心問題：為什麼透過 AWS 使用 Claude，比直接使用更好？</p>
+
+    <div class="pullquote">
+      <p><strong>"This is a story about teamwork — about 'Better Together,' because one plus one is greater than two. From Claude 2, we've been working to combine Anthropic's frontier models with the best cloud provider advantages that AWS has."</strong>
+      <span class="zh">「這是一個關於團隊合作的故事——關於強強聯手，因為一加一大於二。從 Claude 2 開始，我們一直在努力將 Anthropic 最頂尖的前沿模型，與 AWS 作為最優秀雲端供應商的優勢結合在一起。」</span></p>
+      <cite>— Antonio Rodriguez, AWS Developer &amp; Cloud Whisperer</cite>
+    </div>
+
+    <h3>為什麼這是「真正的」戰略合作，而非 API 串接？</h3>
+    <div class="ledger">
+      <div class="ledger-row reveal">
+        <span class="ledger-num">01</span>
+        <div class="ledger-body"><p><strong>硬體層深度整合。</strong> Amazon 自研 <span class="term" data-def="Trainium：Amazon 專為 AI 訓練與推論設計的客製化晶片，第三代版本針對 Claude 模型的 Token 吞吐量與成本效益進行了底層優化。">Trainium</span> 第三代晶片，讓 Claude 的底層計算直接跑在 AWS 的專屬硬體上，而非通用 GPU。</p></div>
+      </div>
+      <div class="ledger-row reveal">
+        <span class="ledger-num">02</span>
+        <div class="ledger-body"><p><strong>資本層雙向綁定。</strong> Amazon 數十億美元投資 Anthropic；Anthropic 承諾 $1,000 億美元以上的 AWS 用量。雙方的財務成功深度綁定。</p></div>
+      </div>
+      <div class="ledger-row reveal">
+        <span class="ledger-num">03</span>
+        <div class="ledger-body"><p><strong>安全層零妥協設計。</strong> Zero Operator Access + PrivateLink，讓企業可以在完全不讓資料離開 AWS 邊界的前提下使用 Claude。</p></div>
+      </div>
+      <div class="ledger-row reveal">
+        <span class="ledger-num">04</span>
+        <div class="ledger-body"><p><strong>功能層新 GA 里程碑。</strong> Claude platform on AWS 實現了「Anthropic 原生新功能」與「AWS 企業級帳單與 IAM 控制」的首次雙優勢融合。</p></div>
+      </div>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 什麼是「雲端供應商」？為什麼重要？</span>
+      <h5>雲端不只是「把程式放到網路上」</h5>
+      <p>「雲端」是指使用遠端的電腦伺服器（而非你自己的硬體）來運行應用程式。AWS（Amazon Web Services）是全球最大的雲端供應商之一，提供從伺服器到 AI 模型的一站式服務。</p>
+      <ul>
+        <li>沒有雲端：你要自己買伺服器、管安全性、擔心流量爆炸時崩潰</li>
+        <li>有雲端：按用量付費、自動擴充、合規性有專業團隊處理</li>
+        <li>有 AWS + Claude：企業可以用既有的 AWS 帳號和安全框架直接接入 Claude，無需重新建立一套 AI 基礎設施</li>
+      </ul>
+      <p>對企業來說，AWS 的優勢不只是計算資源，更是「與現有 IT 治理體系的無縫融合」。</p>
+    </aside>
+  </section>
+
+  <section class="chapter reveal">
+    <span class="roman">I</span>
+    <h2>投資規模：數字背後的戰略含義</h2>
+    <p class="lede">Anthropic 與 AWS 的合作規模，遠超一般的雲端服務協議。從數十億美元的股權投資到千億級的基礎設施承諾，這是 AI 產業有史以來最大規模的雲端原生合作之一。</p>
+
+    <div class="invest-chart" id="investChart">
+      <div class="invest-row">
+        <div class="invest-label">Amazon 投資 Anthropic</div>
+        <div class="invest-track"><div class="invest-fill" data-w="28"></div></div>
+        <div class="invest-amount">數十億美元</div>
+      </div>
+      <div class="invest-row">
+        <div class="invest-label">Anthropic AWS 承諾</div>
+        <div class="invest-track"><div class="invest-fill" data-w="100"></div></div>
+        <div class="invest-amount">$1,000億+</div>
+      </div>
+      <div class="invest-row">
+        <div class="invest-label">Project Rainier 規模</div>
+        <div class="invest-track"><div class="invest-fill" data-w="85"></div></div>
+        <div class="invest-amount">全球最大之一</div>
+      </div>
+    </div>
+
+    <div class="story">
+      <span class="story-tag">戰略背景 · 從 Claude 2 到 Trainium 3</span>
+      <h4>三年前，他們還在用通用 GPU 跑 Claude 2</h4>
+      <p>Antonio 回憶：「三年多前，我加入團隊開始與 Anthropic 合作，當時我們剛推出 Claude 2——那在當時是一個令人驚豔的巨大模型，它正在改變腳下的土地。」</p>
+      <p>三年後，合作已從「一個 API 串接」演變為：AWS 從晶片設計開始就為 Claude 量身打造基礎設施——第三代 Trainium 晶片直接優化 Claude 的推論效率，而 Project Rainier 則成為世界上最大的 AI 運算基礎設施之一。</p>
+      <p><em>這個故事告訴我們：AI 的競爭，最終會沿著供應鏈向下延伸到晶片層。誰能掌控底層計算的效率，誰就能在 Token 成本上建立護城河。</em></p>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 為什麼 AI 公司要自己設計晶片？</span>
+      <h5>從 GPU 到專用 AI 晶片：效率的量級跳躍</h5>
+      <p>通用 GPU（如 NVIDIA A100）設計上是為各種計算任務優化的。但 AI 模型推論有非常特定的計算模式——大量的矩陣乘法、特定的記憶體存取模式。</p>
+      <ul>
+        <li>通用 GPU：什麼都能跑，但沒有針對 AI 推論優化</li>
+        <li>客製晶片（如 Trainium）：專為 AI 模型的計算特性設計，可以用更低的能耗、更高的速度完成相同工作</li>
+        <li>實際效果：同樣一個 Claude 推論請求，Trainium 比通用 GPU 更快且成本更低</li>
+      </ul>
+      <p>這就是為什麼 Google 有 TPU、Apple 有 Neural Engine、Amazon 有 Trainium——客製晶片是 AI 規模化後最重要的成本槓桿。</p>
+    </aside>
+  </section>
+
+</div><!-- end panel-0 -->
+
+<!-- ═══ TAB II: 底層硬體 ═══ -->
+<div class="tab-panel" id="panel-1">
+
+  <section class="chapter reveal">
+    <span class="roman">II</span>
+    <h2>Project Rainier 與 Trainium：基礎設施的戰略護城河</h2>
+    <p class="lede">在 AI 競賽中，模型能力是顯性的競爭；而訓練與推論的基礎設施，是隱性的護城河。AWS 與 Anthropic 共同打造的底層硬體生態，正在重新定義「AI 即服務」的成本結構。</p>
+
+    <h3>Project Rainier：為 Claude 量身打造的算力帝國</h3>
+    <p>Project Rainier 不是一個普通的資料中心，而是專為 Claude 模型的訓練與全球推論托管而建造的超大規模 AI 運算基礎設施——目前是全球規模最大的 AI 算力叢集之一。</p>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 什麼是 AI 運算叢集？</span>
+      <h5>數千張 GPU/晶片協同工作的「AI 超算中心」</h5>
+      <p>訓練一個大型 AI 模型需要數週甚至數月、使用數千個 GPU 同時工作。這些 GPU 必須在超低延遲的網路下互相協調，才能讓「分散式訓練」正常運作。</p>
+      <ul>
+        <li>一般伺服器：幾個到幾十個 GPU，處理日常業務</li>
+        <li>AI 訓練叢集：數千到數萬個 GPU/晶片，專門跑大型模型訓練</li>
+        <li>Project Rainier：Amazon 和 Anthropic 共同打造，目前是全球最大的 AI 算力叢集之一，供 Claude 訓練與推論使用</li>
+      </ul>
+      <p>控制訓練叢集，意味著 Anthropic 不需要像許多 AI 公司一樣依賴第三方算力供應商，可以自主決定訓練計畫和成本結構。</p>
+    </aside>
+
+    <div class="duo">
+      <div class="duo-card reveal">
+        <h4>Trainium（訓練晶片）</h4>
+        <p>Amazon 自研的 AI 訓練加速晶片，專門優化大型神經網路的反向傳播計算。第三代版本顯著提升了 Claude 訓練的吞吐量與能耗效率。</p>
+      </div>
+      <div class="duo-card reveal">
+        <h4>Inferentia（推論晶片）</h4>
+        <p>AWS 針對 AI 推論（模型已訓練好、對新輸入做預測）優化的晶片。Token 生成成本更低、延遲更短，是 Claude API 服務的底層計算引擎之一。</p>
+      </div>
+    </div>
+
+    <h3>對開發者的實際意義：Token 成本與速度</h3>
+    <div class="ledger">
+      <div class="ledger-row reveal">
+        <span class="ledger-num">✓</span>
+        <div class="ledger-body"><p><strong>更低的 Token 成本。</strong> 客製晶片的效率優勢最終反映在 API 定價上——使用 Bedrock 上的 Claude，享有 Trainium 硬體帶來的成本優化。</p></div>
+      </div>
+      <div class="ledger-row reveal">
+        <span class="ledger-num">✓</span>
+        <div class="ledger-body"><p><strong>更高的推論速度。</strong> 針對 Claude 模型架構優化的晶片，在相同硬體資源下能生成更多 Token/秒，降低 API 延遲。</p></div>
+      </div>
+      <div class="ledger-row reveal">
+        <span class="ledger-num">✓</span>
+        <div class="ledger-body"><p><strong>不受第三方 GPU 市場波動影響。</strong> Anthropic 不依賴 NVIDIA GPU 供應短缺，算力供應更穩定。</p></div>
+      </div>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 為什麼「訓練晶片」和「推論晶片」是不同的？</span>
+      <h5>訓練 vs 推論：完全不同的計算需求</h5>
+      <p>AI 模型的生命週期分兩個階段：</p>
+      <ul>
+        <li><strong>訓練（Training）：</strong>用大量資料教模型「學習」。計算量巨大，需要大量記憶體，允許較高延遲，通常幾週一次。</li>
+        <li><strong>推論（Inference）：</strong>用訓練好的模型回答用戶問題。計算量相對小，但延遲要求極高（必須在幾秒內回答），且每天要跑數十億次。</li>
+      </ul>
+      <p>就像「建造一棟房子」（訓練）和「住在裡面」（推論）是完全不同的工作——需要不同的工具和技能。</p>
+    </aside>
+  </section>
+
+</div><!-- end panel-1 -->
+
+<!-- ═══ TAB III: 企業安全 ═══ -->
+<div class="tab-panel" id="panel-2">
+
+  <section class="chapter reveal">
+    <span class="roman">III</span>
+    <h2>企業安全架構：你的資料，永遠只屬於你</h2>
+    <p class="lede">對銀行、醫療機構、政府機關而言，AI 的最大使用障礙不是能力，而是「我的敏感資料會去哪裡」。AWS 透過 Zero Operator Access、PrivateLink 和地區鎖定，給出了企業最需要的答案。</p>
+
+    <div class="security-grid">
+      <div class="sec-card reveal">
+        <div class="sec-icon">🔒</div>
+        <h4>Zero Operator Access</h4>
+        <p>Amazon 或 Anthropic 的任何工程師都無法觸及正在運行的資料執行個體。你的資料，任何人都看不到——包括雲端供應商自己的員工。</p>
+      </div>
+      <div class="sec-card reveal">
+        <div class="sec-icon">🔗</div>
+        <h4>PrivateLink 隔離</h4>
+        <p>所有推論流量完全在你的 VPC 與 AWS 邊界內流轉，永遠不會碰到公共網際網路。即使使用公有雲，資料也不等同於公開。</p>
+      </div>
+      <div class="sec-card reveal">
+        <div class="sec-icon">🌍</div>
+        <h4>地區鎖定（Region Lock）</h4>
+        <p>可以強制限定只在 AWS 倫敦區域或歐洲區域部署 Claude，確保資料完全符合 GDPR 等地理邊界法規，不跨越國界。</p>
+      </div>
+      <div class="sec-card reveal">
+        <div class="sec-icon">🛡</div>
+        <h4>Guardrails 自動防護</h4>
+        <p>自動遮蔽 PII 個人識別資訊、透過落地驗證（Grounding）控制模型幻覺、主題過濾——在模型層之上再加一層企業合規防護。</p>
+      </div>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 什麼是 PrivateLink？</span>
+      <h5>讓你的流量「從不離開 AWS 網路」</h5>
+      <p>正常情況下，你的應用程式呼叫 Claude API 時，請求會走過公共網際網路才到 Anthropic 的伺服器——這中間有潛在的竊聽風險。</p>
+      <p>PrivateLink 讓這個過程完全在 AWS 的私有網路內完成：</p>
+      <ul>
+        <li>你的 VPC（虛擬私有雲）→ AWS 私有網路 → Claude 推論服務</li>
+        <li>全程不經過公共網際網路</li>
+        <li>就像在公司內網打內線電話，而不是用外線打電話</li>
+      </ul>
+      <p>這對處理敏感資料的企業（銀行、醫院、政府）至關重要——GDPR、HIPAA 等法規要求最高等級的傳輸安全。</p>
+    </aside>
+
+    <div class="pullquote">
+      <p><strong>"Zero operator access means that nobody at Amazon or Anthropic can access those instances. Your data remains completely private — no one will use that data to train models or similar operations."</strong>
+      <span class="zh">「零營運人員存取意味著 Amazon 或 Anthropic 的任何人都無法存取這些執行個體。你的資料保持完全私密——沒有人會使用這些資料來訓練模型或進行類似操作。」</span></p>
+      <cite>— Antonio Rodriguez</cite>
+    </div>
+
+    <h3>合規認證：一張企業採購清單</h3>
+    <div class="duo">
+      <div class="duo-card reveal">
+        <h4>金融 &amp; 政府</h4>
+        <p><strong>FedRAMP：</strong>美國聯邦機關雲端安全認證<br><strong>PCI-DSS：</strong>支付卡行業資料安全標準<br><strong>SOC 2 Type II：</strong>服務組織控制安全報告</p>
+      </div>
+      <div class="duo-card reveal">
+        <h4>醫療 &amp; 歐洲</h4>
+        <p><strong>HIPAA：</strong>美國醫療資訊隱私法<br><strong>GDPR：</strong>歐盟通用資料保護規範（支援地區鎖定）<br><strong>ISO 27001：</strong>資訊安全管理系統國際標準</p>
+      </div>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 什麼是 PII？Guardrails 如何保護它？</span>
+      <h5>個人識別資訊的自動遮蔽</h5>
+      <p>PII（Personally Identifiable Information，個人識別資訊）是指任何可以用來辨識特定個人的資料，例如：姓名、身分證字號、信用卡號、電話、醫療記錄。</p>
+      <p>Bedrock Guardrails 的 PII 遮蔽功能：</p>
+      <ul>
+        <li>當用戶輸入包含 PII 時，自動偵測並遮蔽（如 "John Smith" → "[PERSON]"）</li>
+        <li>模型看不到真實的個人資料，防止敏感資訊進入 AI 的推論過程</li>
+        <li>也可以在模型輸出中過濾掉任何意外生成的 PII 內容</li>
+      </ul>
+      <p>對醫療系統來說，這意味著你可以讓 Claude 協助分析病患資料，而不必擔心患者的個人識別資訊被洩漏或記錄。</p>
+    </aside>
+
+    <div class="story">
+      <span class="story-tag">合規難題 · 高規管行業的 AI 困境</span>
+      <h4>銀行要用 AI，但合規部門說不</h4>
+      <p>全球許多大型金融機構早在 2023-2024 年就測試過 Claude，但都卡在同一個問題：「如果客戶的交易資料和對話記錄進入 AI 模型，我們如何確保它不會被用來訓練其他人的模型？GDPR 允許這麼做嗎？」</p>
+      <p>AWS 的 Zero Operator Access + PrivateLink + Region Lock 組合，正是為了直接回答這些問題而設計的——你的資料在你的 VPC 邊界內，任何人包括 AWS 和 Anthropic 的工程師都摸不到，且永遠不用於訓練。</p>
+      <p><em>這個故事告訴我們：AI 採用率的核心障礙往往不是技術，而是合規框架。能提供可驗證的隔離保證的雲端供應商，才能打開企業市場的大門。</em></p>
+    </div>
+  </section>
+
+</div><!-- end panel-2 -->
+
+<!-- ═══ TAB IV: 三種接入方式 ═══ -->
+<div class="tab-panel" id="panel-3">
+
+  <section class="chapter reveal">
+    <span class="roman">IV</span>
+    <h2>三種接入方式：業界最完整的 Claude 部署選項</h2>
+    <p class="lede">Antonio 宣布：AWS 是目前市場上提供最多樣 Claude 接入選項的雲端平台。從 API、到新 GA 的原生平台、再到桌面端，每一種都滿足不同規模和需求的開發者。</p>
+
+    <div class="access-grid">
+      <div class="access-card reveal">
+        <div class="access-num">01</div>
+        <span class="access-badge">原有功能</span>
+        <h4>Amazon Bedrock API</h4>
+        <p>透過 Amazon Bedrock 直接呼叫 Claude API，享有 AWS 的完整生態系。</p>
+        <p>· 業界唯一支援雲端微調 Haiku</p>
+        <p>· 新增 Opus 4.7 + Messages API</p>
+        <p>· 完整 Bedrock 功能（RAG、Guardrails、評估、蒸餾）</p>
+      </div>
+      <div class="access-card reveal">
+        <div class="access-num">02</div>
+        <span class="access-badge">新 GA 重磅</span>
+        <h4>Claude Platform on AWS</h4>
+        <p>全新正式上線，同時享有 Anthropic 原生功能 + AWS 企業級控制。</p>
+        <p>· Anthropic 功能 parity（網路搜尋、Agents、檔案處理）</p>
+        <p>· AWS 統一帳單 + IAM 存取控制</p>
+        <p>· 兩全其美，過去互斥的優勢首次融合</p>
+      </div>
+      <div class="access-card reveal">
+        <div class="access-num">03</div>
+        <span class="access-badge">桌面端整合</span>
+        <h4>Claude Desktop / Code</h4>
+        <p>開發者工具端點直接指向 AWS 後端，工具在本地、算力在雲端。</p>
+        <p>· AWS Marketplace 企業訂閱</p>
+        <p>· 3P 端點直接指向 Bedrock 或 Claude Platform</p>
+        <p>· 本地開發體驗 + 雲端安全與計費</p>
+      </div>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 什麼是「Feature Parity」？</span>
+      <h5>「功能同步」：不因使用方式而犧牲能力</h5>
+      <p>「Feature parity」是指兩個平台提供完全相同的功能集。在 AI 服務中，這是一個核心痛點：</p>
+      <ul>
+        <li>直接用 Anthropic API：最新功能第一時間可用，但沒有企業級帳單和 IAM</li>
+        <li>透過 AWS Bedrock API（舊方式）：有企業級控制，但 Anthropic 新功能要等一段時間才部署</li>
+        <li>Claude Platform on AWS（新方式）：Anthropic 推新功能時同步可用，同時保有 AWS 的企業控制層</li>
+      </ul>
+      <p>對大企業來說，「不知道下個月 Anthropic 推出的新功能我的 AWS 版本能不能用」是一個真實的架構風險。Feature parity 的承諾消除了這個不確定性。</p>
+    </aside>
+
+    <h3>Bedrock 生態系：Claude 之外的完整工具鏈</h3>
+    <p>Bedrock 不只是 Claude 的接口，而是一個圍繞 AI 應用全生命週期的完整平台：</p>
+    <div class="stack-layers">
+      <div class="stack-layer reveal">
+        <div class="layer-num">A</div>
+        <div class="layer-body"><strong>模型能力層</strong><p>基礎模型接入（Claude、其他主流模型）、微調（Fine-tuning，業界唯一雲端微調 Haiku）、模型蒸餾（Model Distillation，將大模型知識轉移到小模型）</p></div>
+      </div>
+      <div class="stack-layer reveal">
+        <div class="layer-num">B</div>
+        <div class="layer-body"><strong>應用開發層</strong><p>RAG 知識庫（完全托管）、提示詞優化、模型評估、Bedrock Studio 視覺化開發環境</p></div>
+      </div>
+      <div class="stack-layer reveal">
+        <div class="layer-num">C</div>
+        <div class="layer-body"><strong>安全防護層</strong><p>Guardrails（PII 遮蔽、幻覺控制、主題過濾）、<span class="term" data-def="Grounding：透過將模型輸出與可驗證的事實來源進行對比，自動偵測並標記模型幻覺（憑空捏造的內容）。">Grounding 驗證</span>、內容過濾政策</p></div>
+      </div>
+      <div class="stack-layer reveal">
+        <div class="layer-num">D</div>
+        <div class="layer-body"><strong>代理框架層</strong><p>Bedrock Agent Core（相容 Claude Agent SDK、LangChain、CrewAI），提供安全託管的 Agentic AI 基礎設施，並內建 CloudWatch 可觀測性</p></div>
+      </div>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 什麼是 RAG？為什麼需要它？</span>
+      <h5>讓 AI 能讀你的私有文件，而非只靠訓練知識</h5>
+      <p>RAG（Retrieval-Augmented Generation，檢索增強生成）解決了 AI 模型的一個核心限制：模型只知道訓練資料截止日之前的公開知識，不知道你公司的內部文件。</p>
+      <ul>
+        <li>沒有 RAG：「Claude，我們公司的請假政策是什麼？」→ 模型不知道，亂答</li>
+        <li>有 RAG：用戶問問題 → 系統先搜尋你的文件庫 → 把相關段落給 Claude → Claude 根據真實文件回答</li>
+        <li>Bedrock 知識庫：完全托管的 RAG 基礎設施，你只需要上傳文件，其他全由 AWS 管理</li>
+      </ul>
+      <p>這是企業 AI 應用最常見的使用模式——讓 AI 能訪問企業私有知識，同時保持資料在你的 AWS 邊界內。</p>
+    </aside>
+
+    <div class="story">
+      <span class="story-tag">工作坊現場 · Claude Code + Playwright MCP 繪製架構圖</span>
+      <h4>當 AI 不只是助手，而是能自主截圖並修改設計的工程師</h4>
+      <p>Antonio 在工作坊中以 <span class="term" data-def="Excalidraw：一款開源的白板繪圖工具，常用於繪製架構圖和流程圖。其程式庫（Repository）作為工作坊的實作載體。">Excalidraw</span> 為案例，展示了 Claude Code 的進階能力：</p>
+      <p><strong>模組二：</strong>引入 <span class="term" data-def="Playwright MCP：Playwright 是微軟開發的瀏覽器自動化框架；MCP（Model Context Protocol）允許 Claude 透過工具呼叫直接控制瀏覽器行為。">Playwright MCP</span>，讓 Claude Code 可以直接對正在編輯的架構圖進行截圖，然後「看著圖」做出自動化的修改。</p>
+      <p><strong>模組三：</strong>子代理（Sub-agents）、自訂技能點（Skills Hooks）、進階配置參數——讓 Claude Code 從「單一代理」演化為「多代理協同」的生產架構。</p>
+      <p><em>這個現場演示最震撼的地方在於：AI 不只是在「聽你的指令」，而是在「看著視覺化的工作成果」並自主做出修正。這是代理型 AI 在視覺理解層面的新里程碑。</em></p>
+    </div>
+  </section>
+
+  <section class="chapter reveal">
+    <span class="roman">IV</span>
+    <h2>企業生產環境工具鏈</h2>
+    <p class="lede">從原型到生產，Antonio 提供了完整的企業監控與成本控管工具集——讓 Claude 的使用不只是「可以跑」，而是「可以管理、可以計費、可以 audit」。</p>
+
+    <div class="duo">
+      <div class="duo-card reveal">
+        <h4>CloudWatch 可觀測性</h4>
+        <p>即時追蹤 Token 使用量、API 延遲、錯誤率。設定 Token 成本儀表板，確保 Claude Code 的消耗在預算範圍內。支援自動警報與 Slack 通知。</p>
+      </div>
+      <div class="duo-card reveal">
+        <h4>CloudTrail 審計軌跡</h4>
+        <p>記錄所有 Claude API 呼叫的完整 log：誰在何時呼叫了什麼。這是金融行業合規審計（Audit Trail）的核心要求，也是 AI 治理框架的基礎。</p>
+      </div>
+      <div class="duo-card reveal">
+        <h4>IAM 身份管理整合</h4>
+        <p>直接與現有的企業 SSO 整合：Microsoft Entra ID、Okta 等 Identity Provider 可以直接控制誰有權使用 Claude。不需要另外管理 AI 的帳號系統。</p>
+      </div>
+      <div class="duo-card reveal">
+        <h4>統一帳單（AWS Billing）</h4>
+        <p>Claude 的使用費用直接整合進既有的 AWS 帳單。企業無需新增 Anthropic 的供應商關係，Claude 的費用就像 EC2 或 S3 一樣，直接在 AWS 控制台管理。</p>
+      </div>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 什麼是 IAM？為什麼對企業重要？</span>
+      <h5>「誰有權做什麼」的中央管理系統</h5>
+      <p>IAM（Identity and Access Management，身份與存取管理）是企業 IT 治理的核心：統一管理每個員工和系統能訪問哪些資源。</p>
+      <ul>
+        <li>沒有 IAM 整合：你需要在 Anthropic 平台另外管理一套 API key，和其他 IT 系統脫節</li>
+        <li>有 IAM 整合：Claude 的使用權限和你現有的企業帳號系統（AD、Okta 等）打通，離職員工的 Claude 存取權跟著 IT 系統自動撤銷</li>
+      </ul>
+      <p>對大企業來說，「單一登入」（SSO）和「集中存取控制」不只是便利——而是 IT 治理和資安審計的必要條件。</p>
+    </aside>
+  </section>
+
+</div><!-- end panel-3 -->
+
+<!-- ═══ TAB V: 思考題 ═══ -->
+<div class="tab-panel" id="panel-4">
+
+  <section class="chapter reveal">
+    <span class="roman">V</span>
+    <h2>思考題與討論方向</h2>
+    <p class="lede">AWS 與 Anthropic 的深度整合，觸及了 AI 產業的幾個核心結構性問題：晶片壟斷、資料主權、雲端集中化風險。以下六個問題邀請你從多個視角思考。</p>
+
+    <div class="discuss reveal">
+      <p>Q1 — Antonio 說「雲端低語者」取代了「工程師寫程式」——我們現在是在對模型低語，而不是真的在寫程式碼。這個論斷是否誇大？提示詞工程（Prompt Engineering）和傳統軟體工程的邊界在哪裡？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>1. 量化歷史：</strong>對比「SQL 出現時，有人說程式設計師不再需要寫底層資料庫操作」——SQL 確實取代了部分工作，但也創造了新職位（DBA）。Claude Code 是否會走同樣的路？</li>
+          <li><strong>2. 隱含論點：</strong>Antonio 的論點背後是「開發者的工作已從精確規範（Specification）轉移到模糊引導（Steering）」。這個轉移在哪些工作類型上最明顯、最快？</li>
+          <li><strong>3. 職涯啟發：</strong>「對 AI 有效低語」是一個新的專業技能。這個技能可以被系統化教學嗎？還是更像是「直覺」和「藝術性」？</li>
+          <li><strong>4. 反向思考：</strong>有些程式設計師認為提示詞工程是「臨時的技能」——隨著 AI 系統改進，好的提示詞會自動生成，人工技藝會消失。你同意嗎？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss reveal">
+      <p>Q2 — AWS 提供「Zero Operator Access」——連自己的工程師都看不到客戶的推論資料。這個承諾在技術上如何可驗證？客戶是否應該只相信 AWS 的聲明，還是需要獨立的技術驗證機制？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>1. 技術驗證：</strong>Trusted Execution Environment（可信執行環境，如 Intel SGX、AWS Nitro Enclave）是提供硬體層級的隔離驗證的技術。AWS 的 Zero Operator Access 是否建立在這些可被第三方審計的技術上？</li>
+          <li><strong>2. 隱含的「信任轉移」問題：</strong>用戶以前擔心自己的資料被 Anthropic 訓練，現在又多了「AWS 能不能信任」。合規框架（FedRAMP、SOC 2）是否足以建立信任，還是需要更強的技術保證？</li>
+          <li><strong>3. 職涯啟發：</strong>「Zero Trust Architecture」是現代雲端安全的核心哲學——不信任任何人，包括內部員工。如果你是企業 CISO，你會如何設計 Claude on AWS 的採用評估框架？</li>
+          <li><strong>4. 反向思考：</strong>Zero Operator Access 是一個對客戶的承諾，但也限制了 AWS 自己的工程師調試生產問題的能力。這個限制在實際運維中是否會帶來服務質量的問題？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss reveal">
+      <p>Q3 — Anthropic 與 AWS 的合作是一個雙向資本綁定關係（Amazon 投資 Anthropic；Anthropic 承諾 $1,000 億 AWS 用量）。這種深度綁定對 AI 生態系的競爭格局意味著什麼？是健康的合作，還是形成了新的壟斷風險？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>1. 歷史對照：</strong>Microsoft + OpenAI 的合作模式（微軟投資、OpenAI 在 Azure 跑）和 Amazon + Anthropic 非常相似。對比兩者的條款差異，哪一個對 AI 公司保留了更多獨立性？</li>
+          <li><strong>2. 反壟斷視角：</strong>歐盟和英國競爭監管機構已在審查 Microsoft/OpenAI 的關係。Anthropic/AWS 的關係是否有類似的監管風險？監管機構最在意的是什麼？</li>
+          <li><strong>3. 職涯啟發：</strong>如果你是一個 AI 初創公司的 CTO，你會選擇「深度綁定一個雲端供應商換取資金和底層支援」還是「保持多雲中立換取更大的靈活性」？兩者的 trade-off 如何量化？</li>
+          <li><strong>4. 反向思考：</strong>深度合作可能加速 AI 的安全研究（兩方都有動機讓 Claude 更可靠），這是否比技術競爭更有利於 AI 的長期安全？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss reveal">
+      <p>Q4 — 「Claude platform on AWS」的 GA，實現了「Anthropic 功能 parity + AWS 企業控制」的雙重優勢。但這個模式下，當 Anthropic 和 AWS 在功能優先序上發生分歧時，誰說了算？用戶應如何評估這個潛在的張力？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>1. 歷史案例：</strong>Salesforce 在 AWS 上的部署歷史、GitHub 被 Microsoft 收購後的發展——這些「強強聯合」的案例裡，平台方和服務方如何處理優先序衝突？</li>
+          <li><strong>2. 隱含的架構耦合：</strong>「Feature parity」承諾的是當下，但未來 Anthropic 推出的功能如果需要特定的基礎設施調整（如新型記憶體機制），AWS 版本的實現是否永遠能保持同步？</li>
+          <li><strong>3. 職涯啟發：</strong>作為開發者，評估一個「雙供應商依賴」的技術方案時，應該問哪些關鍵問題來評估長期的鎖定風險（Vendor Lock-in）？</li>
+          <li><strong>4. 反向思考：</strong>「功能 parity + AWS 控制」的用戶是不是比純 Anthropic 用戶更不靈活？當 Anthropic 推出革命性新功能時，Claude Platform on AWS 用戶的第一反應時間（Time-to-Feature）實際上會快還是慢？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss reveal">
+      <p>Q5 — Amazon 自研 Trainium 晶片專為 Claude 優化。這個趨勢（AI 公司和雲端供應商共同設計晶片）對 NVIDIA 的市場地位意味著什麼？五年後，AI 晶片市場的格局會是什麼樣子？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>1. 量化現況：</strong>Google TPU v5e、Amazon Trainium 2、Meta MTIA、Microsoft Maia——主要科技巨頭都在投資自研 AI 晶片。目前這些晶片的市場份額和 NVIDIA A100/H100 相比如何？</li>
+          <li><strong>2. 護城河分析：</strong>NVIDIA 的真正護城河是 CUDA 生態系（數以千計的 AI/ML 庫都是針對 CUDA 優化的）。自研晶片如何打破這個生態依賴？</li>
+          <li><strong>3. 職涯啟發：</strong>如果你正在考慮進入 AI 基礎設施領域，「晶片設計」和「晶片軟體生態（CUDA、ROCm、Trainium SDK）」哪個方向有更好的職涯前景？</li>
+          <li><strong>4. 反向思考：</strong>如果每個主要雲端供應商都有自己的 AI 晶片，而每個主要 AI 公司的模型都針對某個特定晶片優化，這是否會讓 AI 的「可攜性」大幅降低？對開源 AI 生態系有什麼影響？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss reveal">
+      <p>Q6 — 工作坊中，Claude Code 使用 Playwright MCP「看著架構圖」並自動修改它。這種「AI 看見自己正在做的工作並反饋調整」的能力，在更廣泛的軟體工程實踐中會帶來什麼革命？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>1. 閉迴路設計：</strong>Playwright MCP 讓 AI 形成了「設計→截圖→觀察→修改」的閉迴路。這個模式在軟體工程的哪些領域（UI 設計、程式碼審查、測試）中最有潛力實現類似的「自我閉迴路」？</li>
+          <li><strong>2. 隱含論點：</strong>Antonio 展示的是「工具回饋循環（Tool Feedback Loop）」——AI 使用工具、觀察工具結果、再使用工具修正。這是否是 Agentic AI 最核心的設計模式？</li>
+          <li><strong>3. 職涯啟發：</strong>「能讓 AI 形成有效的工具回饋循環」是一個新的工程技能。這意味著工程師的角色從「寫工具」轉變為「設計工具的回饋接口，讓 AI 能理解工具的輸出」。你認為這個轉變在多久後會變成主流？</li>
+          <li><strong>4. 反向思考：</strong>當 AI 能「看見並自我修正」時，人工的 Code Review 還有意義嗎？什麼樣的人類判斷是 AI 自我閉迴路中永遠無法替代的？</li>
+        </ul>
+      </details>
+    </div>
+
+    <h3>名詞速查表</h3>
+    <div class="ledger">
+      <div class="ledger-row"><span class="ledger-num">A</span><div class="ledger-body"><p><strong>Bedrock Agent Core：</strong>AWS 提供的安全託管代理框架，相容 Claude Agent SDK、LangChain、CrewAI 等主流框架，內建 CloudWatch 可觀測性與 IAM 安全整合。</p></div></div>
+      <div class="ledger-row"><span class="ledger-num">B</span><div class="ledger-body"><p><strong>Claude Platform on AWS（新 GA）：</strong>全新正式上線的服務，同時提供 Anthropic 原生功能 parity（網路搜尋、Agents 等）與 AWS 的企業級帳單和 IAM 存取控制。</p></div></div>
+      <div class="ledger-row"><span class="ledger-num">C</span><div class="ledger-body"><p><strong>Guardrails：</strong>Bedrock 的安全防護層，提供 PII 自動遮蔽、幻覺控制（Grounding）、主題過濾等功能，在模型能力層之上加一道企業合規防護。</p></div></div>
+      <div class="ledger-row"><span class="ledger-num">D</span><div class="ledger-body"><p><strong>Model Distillation（模型蒸餾）：</strong>將大模型的知識「蒸餾」轉移到小模型的技術，讓小模型在特定任務上達到接近大模型的表現。Bedrock 是業界少數支援此功能的雲端平台。</p></div></div>
+      <div class="ledger-row"><span class="ledger-num">E</span><div class="ledger-body"><p><strong>PrivateLink：</strong>AWS 網路服務，讓所有推論流量在 VPC 和 AWS 私有網路內流轉，永不觸及公共網際網路，滿足最高等級的資料隔離要求。</p></div></div>
+      <div class="ledger-row"><span class="ledger-num">F</span><div class="ledger-body"><p><strong>Project Rainier：</strong>Amazon 與 Anthropic 共同建造的超大規模 AI 運算基礎設施，目前是全球最大的 AI 算力叢集之一，採用 Trainium 客製晶片，專門用於訓練和託管 Claude 模型。</p></div></div>
+      <div class="ledger-row"><span class="ledger-num">G</span><div class="ledger-body"><p><strong>RAG（Retrieval-Augmented Generation）：</strong>在模型推論前先從私有知識庫搜尋相關內容，讓 AI 能根據企業私有文件回答問題，而非僅依賴訓練知識。Bedrock 提供完全托管的 RAG 知識庫服務。</p></div></div>
+      <div class="ledger-row"><span class="ledger-num">H</span><div class="ledger-body"><p><strong>Trainium：</strong>Amazon 自研的 AI 訓練與推論加速晶片，第三代版本針對 Claude 模型的計算特性進行底層優化，是 Project Rainier 的硬體核心。</p></div></div>
+      <div class="ledger-row"><span class="ledger-num">I</span><div class="ledger-body"><p><strong>Zero Operator Access：</strong>Bedrock 最新推論引擎的安全架構——Amazon 或 Anthropic 的任何工程師都無法觸及正在運行的客戶資料執行個體，且資料絕不用於模型訓練。</p></div></div>
+    </div>
+  </section>
+
+</div><!-- end panel-4 -->
+
+</div>
+</article>
+
+<button class="back-top" id="backTop" title="回到頂部" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h6>Event</h6>
+        <p>Code with Claude London 2026<br>Anthropic Developer Conference<br>May 19–20, 2026 · London</p>
+      </div>
+      <div class="footer-col">
+        <h6>This Issue</h6>
+        <ul>
+          <li>No. 03 · Day 2 Talk 2</li>
+          <li>AI with Claude on AWS</li>
+          <li>Antonio Rodriguez</li>
+          <li>Developer &amp; Cloud Whisperer · AWS</li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h6>Content</h6>
+        <ul>
+          <li>9 primers · 3 stories</li>
+          <li>6 guided questions</li>
+          <li>3 interactive visuals</li>
+          <li>Full transcript included</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © The Claude Dispatch · Code with Claude London 2026 · Set in Fraunces, Newsreader &amp; JetBrains Mono · 9 primers · 3 stories · 6 guided questions
+    </div>
+  </div>
+</footer>
+
+<script>
+const prog = document.getElementById('progress');
+window.addEventListener('scroll', () => {
+  const h = document.documentElement;
+  prog.style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%';
+});
+
+const cursor = document.getElementById('cursor');
+document.addEventListener('mousemove', e => {
+  cursor.style.left = e.clientX + 'px';
+  cursor.style.top = e.clientY + 'px';
+});
+document.querySelectorAll('button,a,.duo-card,.access-card,.stat-cell,.ledger-row,.pullquote,.term,.sec-card').forEach(el => {
+  el.addEventListener('mouseenter', () => cursor.classList.add('hover'));
+  el.addEventListener('mouseleave', () => cursor.classList.remove('hover'));
+});
+
+const tabBtns = document.querySelectorAll('.tab-btn');
+const panels = document.querySelectorAll('.tab-panel');
+const indicator = document.getElementById('tabIndicator');
+function setIndicator(btn) { indicator.style.left = btn.offsetLeft + 'px'; indicator.style.width = btn.offsetWidth + 'px'; }
+setIndicator(document.querySelector('.tab-btn.active'));
+tabBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    tabBtns.forEach(b => b.classList.remove('active'));
+    panels.forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    setIndicator(btn);
+    triggerReveal();
+    animateBars();
+  });
+});
+
+function triggerReveal() {
+  document.querySelectorAll('.reveal').forEach(el => {
+    if (el.getBoundingClientRect().top < window.innerHeight * 0.92) el.classList.add('visible');
+  });
+}
+window.addEventListener('scroll', triggerReveal);
+triggerReveal();
+
+function animateBars() {
+  document.querySelectorAll('.invest-fill').forEach(f => {
+    const w = f.dataset.w; f.style.width = '0%';
+    setTimeout(() => { f.style.width = w + '%'; }, 100);
+  });
+}
+const obs = new IntersectionObserver(entries => { entries.forEach(e => { if(e.isIntersecting){ animateBars(); obs.disconnect(); } }); }, {threshold:0.3});
+const chart = document.getElementById('investChart');
+if(chart) obs.observe(chart);
+
+const backTop = document.getElementById('backTop');
+backTop.style.display = 'none';
+window.addEventListener('scroll', () => { backTop.style.display = window.scrollY > 400 ? 'flex' : 'none'; });
+</script>
+<style>#home-btn{position:fixed;bottom:32px;left:32px;width:44px;height:44px;border-radius:50%;background:var(--cardinal,#8c1515);color:var(--paper,#efe8d6);display:flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:3px 3px 0 var(--ink,#1a1410);z-index:901;font-size:20px;transition:transform .2s;}#home-btn:hover{transform:translateY(-4px);}#home-btn::after{content:'';position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;color:var(--ink-faint,#7a6651);opacity:0;transition:opacity .2s;}#home-btn:hover::after{content:'HOME';opacity:1;}</style>
+<a id='home-btn' href='./index.html' title='Back to Index'>&#8962;</a></body>
+</html>

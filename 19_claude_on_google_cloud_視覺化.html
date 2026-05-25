@@ -1,0 +1,1266 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Claude Dispatch — №19 Building with Claude on Google Cloud</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #efe8d6;
+  --paper-deep: #e4d9be;
+  --paper-edge: #d6c89f;
+  --ink: #1a1410;
+  --ink-soft: #4a3a2b;
+  --ink-faint: #7a6651;
+  --cardinal: #8c1515;
+  --cardinal-dk: #5e0e0e;
+  --cardinal-soft: #b34646;
+  --gold: #b48729;
+  --gold-soft: #d8b261;
+  --gold-bg: #f7eccd;
+  --moss: #586a3f;
+  --moss-bg: #e6e6c9;
+  --gcloud: #1a73e8;
+  --gcloud-soft: #4a90d9;
+  --rule: rgba(26,20,16,0.14);
+  --rule-soft: rgba(26,20,16,0.07);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Newsreader', 'Noto Serif TC', Georgia, serif;
+  font-size: 18px;
+  line-height: 1.75;
+  cursor: none;
+}
+
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 999;
+  background-image:
+    radial-gradient(rgba(26,20,16,0.04) 1px, transparent 1px),
+    radial-gradient(rgba(26,20,16,0.025) 1px, transparent 1px);
+  background-size: 3px 3px, 7px 7px;
+  background-position: 0 0, 1px 1px;
+  opacity: .55; mix-blend-mode: multiply;
+}
+
+#progress-bar {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+  background: linear-gradient(90deg, var(--cardinal), var(--gold));
+  z-index: 1000; transition: width 0.1s linear;
+}
+
+#cursor {
+  position: fixed; width: 20px; height: 20px;
+  border: 2px solid var(--cardinal); border-radius: 50%;
+  pointer-events: none; z-index: 9999;
+  transform: translate(-50%, -50%);
+  transition: transform 0.15s ease, width 0.2s ease, height 0.2s ease, opacity 0.2s;
+  mix-blend-mode: multiply;
+}
+#cursor.hovered { width: 76px; height: 76px; }
+
+.container { max-width: 1080px; margin: 0 auto; padding: 0 32px; }
+
+/* MASTHEAD */
+.masthead {
+  background: var(--ink); color: var(--paper);
+  padding: 10px 32px; text-align: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.15em;
+}
+.masthead span { color: var(--gold-soft); }
+
+/* HERO */
+.hero { padding: 56px 0 40px; border-bottom: 2px solid var(--ink); }
+.hero-grid {
+  display: grid; grid-template-columns: 160px 1fr; gap: 40px; align-items: start;
+}
+.issue-stamp {
+  font-family: 'Fraunces', serif; font-size: 72px; font-weight: 800;
+  color: var(--cardinal); line-height: 1; white-space: nowrap;
+  transform: rotate(-4deg); display: inline-block;
+  text-shadow: 2px 2px 0 var(--paper), 4px 4px 0 var(--cardinal-dk);
+  padding: 8px 0;
+}
+.issue-stamp small {
+  display: block; font-size: 13px; letter-spacing: 0.12em;
+  color: var(--ink-faint); font-family: 'JetBrains Mono', monospace; margin-top: 4px;
+}
+h1 {
+  font-family: 'Fraunces', serif; font-size: clamp(34px, 4.6vw, 58px);
+  font-weight: 700; line-height: 1.15; color: var(--ink);
+}
+h1 em { color: var(--cardinal); font-style: italic; }
+.deck {
+  font-family: 'Newsreader', serif; font-size: 20px; color: var(--ink-soft);
+  margin-top: 16px; line-height: 1.5; max-width: 680px;
+}
+.byline {
+  margin-top: 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  letter-spacing: 0.1em; color: var(--ink-faint); border-top: 1px solid var(--rule);
+  padding-top: 12px;
+}
+.byline strong { color: var(--cardinal); }
+
+/* STAT STRIP */
+.stat-strip {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  border-bottom: 2px solid var(--ink); background: var(--paper-deep);
+}
+.stat-item {
+  padding: 24px 20px; border-right: 1px solid var(--rule);
+  position: relative; cursor: default;
+}
+.stat-item:last-child { border-right: none; }
+.stat-num {
+  font-family: 'Fraunces', serif; font-size: 38px; font-weight: 700;
+  color: var(--cardinal); line-height: 1;
+}
+.stat-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  letter-spacing: 0.1em; color: var(--ink-faint); margin-top: 6px;
+  text-transform: uppercase;
+}
+.stat-tooltip {
+  position: absolute; bottom: calc(100% + 8px); left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: var(--ink); color: var(--paper); padding: 8px 12px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  white-space: nowrap; opacity: 0; pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s; z-index: 100; border-radius: 2px;
+}
+.stat-tooltip::after {
+  content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: var(--ink);
+}
+.stat-item:hover .stat-tooltip { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* NAV */
+.nav-wrap {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--paper-deep); border-bottom: 2px solid var(--ink);
+}
+.nav-inner { display: flex; position: relative; }
+.tab-btn {
+  padding: 16px 28px; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint);
+  background: none; border: none; cursor: pointer; transition: color 0.2s;
+  white-space: nowrap;
+}
+.tab-btn:hover { color: var(--ink); }
+.tab-btn.active { color: var(--cardinal); font-weight: 700; }
+.tab-indicator {
+  position: absolute; bottom: 0; height: 3px;
+  background: linear-gradient(90deg, var(--cardinal), var(--gold));
+  transition: left 0.35s cubic-bezier(.4,0,.2,1), width 0.35s cubic-bezier(.4,0,.2,1);
+}
+
+/* ARTICLE / TABS */
+article { padding: 0 0 80px; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* CHAPTER */
+.chapter {
+  padding: 56px 0 40px; border-bottom: 1px solid var(--rule);
+  position: relative; overflow: hidden;
+  opacity: 0; transform: translateY(24px); transition: opacity 0.6s, transform 0.6s;
+}
+.chapter.revealed { opacity: 1; transform: none; }
+.roman {
+  position: absolute; top: 20px; right: 20px; font-family: 'Fraunces', serif;
+  font-size: 220px; font-weight: 800; font-style: italic;
+  color: rgba(26,20,16,0.045); line-height: 1; user-select: none; pointer-events: none;
+}
+h2 {
+  font-family: 'Fraunces', serif; font-size: 44px; font-weight: 700;
+  color: var(--ink); line-height: 1.2; margin-bottom: 24px;
+  padding-left: 24px; border-left: 32px solid var(--cardinal);
+}
+h3 { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; color: var(--ink); margin: 28px 0 12px; }
+h4 { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 600; color: var(--ink); margin: 20px 0 8px; }
+h5 { font-family: 'Fraunces', serif; font-size: 18px; font-style: italic; color: var(--ink); margin-bottom: 8px; }
+p { max-width: 760px; margin-bottom: 16px; color: var(--ink-soft); }
+.lede { font-size: 20px; color: var(--ink); font-weight: 500; margin-bottom: 24px; max-width: 760px; }
+
+/* PRIMER */
+aside.primer {
+  background: var(--gold-bg); border: 1px solid var(--paper-edge);
+  border-left: 4px solid var(--gold); padding: 24px 28px; margin: 32px 0;
+  max-width: 820px;
+}
+.primer-tag {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--gold); display: block; margin-bottom: 10px;
+}
+aside.primer h5 { color: var(--ink); font-size: 17px; margin-bottom: 10px; }
+aside.primer p { font-size: 15px; margin-bottom: 10px; }
+aside.primer ul { padding-left: 20px; font-size: 15px; color: var(--ink-soft); }
+aside.primer li { margin-bottom: 6px; }
+
+/* STORY */
+.story {
+  background: var(--paper-deep); border: 1px solid var(--paper-edge);
+  border-top: 4px solid var(--cardinal); padding: 28px 32px; margin: 32px 0;
+  max-width: 820px;
+}
+.story-tag {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--cardinal-soft); display: block; margin-bottom: 10px;
+}
+.story h4 { font-style: italic; color: var(--cardinal); margin-bottom: 12px; }
+.story p { font-size: 16px; }
+.story blockquote {
+  border-left: 3px solid var(--cardinal-soft); padding-left: 20px; margin: 16px 0;
+  color: var(--cardinal-dk); font-style: italic; font-size: 17px;
+}
+
+/* PULLQUOTE */
+.pullquote {
+  border-top: 3px solid var(--ink); border-bottom: 1px solid var(--rule);
+  padding: 28px 0; margin: 36px 0; max-width: 820px; position: relative;
+}
+.pullquote::before {
+  content: '\201C'; font-family: 'Fraunces', serif; font-size: 120px;
+  color: rgba(140,21,21,0.1); position: absolute; top: -20px; left: -10px;
+  line-height: 1; pointer-events: none;
+  transition: transform 0.4s, opacity 0.4s;
+}
+.pullquote:hover::before { transform: rotate(-6deg); opacity: 0.2; }
+.pullquote p { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 400; color: var(--ink); line-height: 1.4; max-width: 100%; }
+.pullquote cite { display: block; margin-top: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); letter-spacing: 0.08em; }
+.zh { display: block; margin-top: 10px; font-size: 14px; color: var(--ink-faint); border-top: 1px dashed var(--rule); padding-top: 10px; font-style: normal; }
+
+/* TERM */
+.term {
+  background: rgba(180,135,41,0.18); border-bottom: 1px dashed var(--cardinal);
+  cursor: help; position: relative; padding: 0 2px;
+}
+.term::after {
+  content: attr(data-def); position: absolute; bottom: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%); background: var(--ink); color: var(--paper);
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 6px 10px;
+  white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 200;
+  max-width: 280px; white-space: normal; border-radius: 2px;
+}
+.term:hover::after { opacity: 1; }
+
+/* DISCUSS */
+.discuss {
+  background: var(--moss-bg); border: 1px solid var(--moss);
+  border-left: 4px solid var(--moss); padding: 24px 28px; margin: 24px 0;
+  max-width: 820px;
+}
+.discuss > p { font-weight: 600; color: var(--ink); margin-bottom: 12px; font-size: 17px; }
+.discuss details summary {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em;
+  color: var(--moss); cursor: pointer; text-transform: uppercase; user-select: none;
+}
+.discuss details ul { margin-top: 12px; padding-left: 20px; color: var(--ink-soft); font-size: 15px; }
+.discuss details li { margin-bottom: 8px; }
+
+/* DUO CARDS */
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 28px 0; max-width: 820px; }
+.card {
+  background: var(--paper-deep); border: 1px solid var(--paper-edge);
+  padding: 24px; transition: transform 0.2s, box-shadow 0.2s; cursor: default;
+}
+.card:hover { transform: translateY(-4px); box-shadow: 4px 4px 0 var(--ink); }
+.card h4 { color: var(--cardinal); margin-bottom: 10px; }
+.card p { font-size: 15px; }
+
+/* LEDGER */
+.ledger { margin: 28px 0; max-width: 820px; }
+.ledger-row {
+  display: grid; grid-template-columns: 220px 1fr 100px;
+  border-bottom: 1px solid var(--rule); padding: 14px 0;
+  align-items: center; transition: all 0.2s; cursor: default; position: relative; padding-left: 0;
+}
+.ledger-row::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+  background: var(--cardinal); transition: width 0.3s ease;
+}
+.ledger-row:hover::before { width: 4px; }
+.ledger-row:hover { padding-left: 12px; }
+.ledger-row:hover .l-num { color: var(--cardinal); }
+.l-label { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-faint); padding-left: 8px; }
+.l-desc { font-size: 15px; color: var(--ink-soft); }
+.l-num { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 700; color: var(--ink-faint); text-align: right; transition: color 0.2s; }
+
+/* STACK */
+.stack { margin: 28px 0; max-width: 820px; }
+.stack-item {
+  display: grid; grid-template-columns: 48px 1fr;
+  border-bottom: 1px solid var(--rule); padding: 16px 0 16px 0;
+  align-items: start; transition: padding-left 0.2s; cursor: default; position: relative;
+}
+.stack-item::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+  background: var(--cardinal); transition: width 0.3s;
+}
+.stack-item:hover::before { width: 3px; }
+.stack-item:hover { padding-left: 14px; }
+.stack-item:hover .s-roman { opacity: 1; color: var(--cardinal); }
+.s-roman {
+  font-family: 'Fraunces', serif; font-size: 22px; font-weight: 700; font-style: italic;
+  color: rgba(26,20,16,0.18); transition: color 0.2s, opacity 0.2s; line-height: 1.3;
+}
+.s-body h4 { margin: 0 0 6px; }
+.s-body p { font-size: 15px; margin: 0; }
+
+/* BAR CHART */
+.bar-chart { margin: 28px 0; max-width: 820px; }
+.bar-row { display: grid; grid-template-columns: 180px 1fr 80px; align-items: center; margin-bottom: 14px; gap: 12px; }
+.bar-label { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-soft); }
+.bar-track { height: 22px; background: var(--paper-edge); overflow: visible; position: relative; }
+.bar-fill {
+  height: 100%; width: 0; background: linear-gradient(90deg, var(--cardinal), var(--cardinal-soft));
+  transition: width 1.5s ease; position: relative;
+}
+.bar-fill::after {
+  content: attr(data-text); position: absolute; left: calc(100% + 8px); top: 50%;
+  transform: translateY(-50%); font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--ink-faint); white-space: nowrap;
+}
+.bar-val { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--ink-faint); text-align: right; }
+
+/* SECTION DIVIDER */
+.section-rule { border: none; border-top: 1px solid var(--rule); margin: 36px 0; max-width: 820px; }
+
+/* FOOTER */
+.colophon {
+  background: var(--ink); color: var(--paper); padding: 56px 32px 40px;
+  border-top: 4px solid var(--cardinal);
+}
+.colophon-grid { max-width: 1080px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; }
+.colophon h6 {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em;
+  text-transform: uppercase; color: var(--gold-soft); margin-bottom: 16px;
+  padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.colophon p { font-size: 13px; color: rgba(239,232,214,0.7); max-width: none; margin-bottom: 8px; }
+.colophon-rule { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 32px 0; }
+.colophon-foot { max-width: 1080px; margin: 0 auto; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: rgba(239,232,214,0.4); letter-spacing: 0.06em; }
+
+/* BACK TO TOP */
+#back-top {
+  position: fixed; bottom: 32px; right: 32px; width: 48px; height: 48px;
+  background: var(--cardinal); color: var(--paper); border: none; border-radius: 50%;
+  font-size: 20px; cursor: pointer; z-index: 200;
+  box-shadow: 3px 3px 0 var(--ink); transition: transform 0.2s, box-shadow 0.2s;
+}
+#back-top:hover { transform: translateY(-4px); box-shadow: 3px 7px 0 var(--ink); }
+
+/* HAT PIPELINE VISUAL */
+.hat-pipeline {
+  display: flex; gap: 0; margin: 32px 0; max-width: 900px; overflow-x: auto;
+}
+.hat-step {
+  flex: 1; min-width: 140px; background: var(--paper-deep);
+  border: 1px solid var(--paper-edge); padding: 20px 16px; position: relative;
+  text-align: center; transition: transform 0.2s, box-shadow 0.2s;
+  cursor: default;
+}
+.hat-step:not(:last-child)::after {
+  content: '→'; position: absolute; right: -14px; top: 50%; transform: translateY(-50%);
+  font-size: 20px; color: var(--cardinal); z-index: 2;
+}
+.hat-step:hover { transform: translateY(-3px); box-shadow: 3px 3px 0 var(--cardinal); }
+.hat-icon { font-size: 32px; margin-bottom: 8px; }
+.hat-title { font-family: 'Fraunces', serif; font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.hat-subtitle { font-size: 11px; color: var(--ink-faint); font-family: 'JetBrains Mono', monospace; }
+.hat-num {
+  display: block; font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  color: var(--cardinal); margin-bottom: 6px; letter-spacing: 0.1em;
+}
+
+/* CLOUD ARCH VISUAL */
+.cloud-arch {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 28px 0; max-width: 820px;
+}
+.cloud-node {
+  background: var(--paper-deep); border: 1px solid var(--paper-edge);
+  border-top: 3px solid var(--gcloud); padding: 20px 16px; text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s; cursor: default;
+}
+.cloud-node:hover { transform: translateY(-3px); box-shadow: 3px 3px 0 var(--ink); }
+.cloud-node-icon { font-size: 28px; margin-bottom: 8px; }
+.cloud-node-name { font-family: 'Fraunces', serif; font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.cloud-node-desc { font-size: 12px; color: var(--ink-faint); font-family: 'JetBrains Mono', monospace; }
+
+/* MCP FRESHNESS VISUAL */
+.freshness-compare { margin: 28px 0; max-width: 820px; }
+.freshness-row { display: grid; grid-template-columns: 160px 1fr 120px; align-items: center; gap: 12px; margin-bottom: 16px; }
+.freshness-label { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-soft); }
+.freshness-bar { height: 28px; position: relative; }
+.freshness-fill { height: 100%; display: flex; align-items: center; padding-left: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: white; transition: width 1.5s ease; width: 0; }
+.freshness-stale { background: #aaa; }
+.freshness-fresh { background: linear-gradient(90deg, var(--moss), #7aaa4f); }
+.freshness-val { font-family: 'JetBrains Mono', monospace; font-size: 13px; text-align: right; }
+
+/* CI/CD FLOW */
+.cicd-flow {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 28px 0; max-width: 900px;
+}
+.cicd-step {
+  background: var(--paper-deep); border: 1px solid var(--paper-edge);
+  padding: 10px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  color: var(--ink); white-space: nowrap; transition: background 0.2s;
+}
+.cicd-step:hover { background: var(--cardinal); color: var(--paper); }
+.cicd-arrow { color: var(--cardinal); font-size: 18px; }
+.cicd-step.highlight { border-color: var(--cardinal); border-width: 2px; }
+
+/* CODE BLOCK */
+.code-block {
+  background: var(--ink); color: #c8c0a8; padding: 20px 24px; margin: 20px 0;
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.6;
+  max-width: 760px; overflow-x: auto;
+}
+.code-block .kw { color: var(--gold-soft); }
+.code-block .str { color: #a3d9a5; }
+.code-block .cmt { color: #7a6651; font-style: italic; }
+
+@media (max-width: 900px) {
+  .hero-grid { grid-template-columns: 1fr; }
+  .stat-strip { grid-template-columns: 1fr 1fr; }
+  .duo { grid-template-columns: 1fr; }
+  .colophon-grid { grid-template-columns: 1fr; }
+  .hat-pipeline { flex-wrap: wrap; }
+  .cloud-arch { grid-template-columns: 1fr 1fr; }
+  .container { padding: 0 22px; }
+}
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div id="cursor"></div>
+
+<header class="masthead">
+  THE CLAUDE DISPATCH &nbsp;·&nbsp; <span>CODE WITH CLAUDE LONDON 2026</span> &nbsp;·&nbsp; MAY 20, 2026 &nbsp;·&nbsp; ANTHROPIC DEVELOPER CONFERENCE
+</header>
+
+<section class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div>
+        <div class="issue-stamp">№19<small>DAY 2</small></div>
+      </div>
+      <div>
+        <h1>Building with <em>Claude</em><br>on Google Cloud</h1>
+        <p class="deck">五個帽子、一個應用、從草圖到 Looker 儀表板——展示 Claude Code 如何橫跨完整軟體生命週期，在 Google Cloud 上實現無摩擦開發。</p>
+        <div class="byline">
+          <strong>EMANUELE NARDINI</strong> &nbsp;·&nbsp; Developer Advocate, Google Cloud &nbsp;·&nbsp;
+          Session 19 &nbsp;·&nbsp; <span>Frictionless Cloud Development</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="stat-strip">
+  <div class="stat-item">
+    <div class="stat-num">5</div>
+    <div class="stat-label">個角色 Hat</div>
+    <div class="stat-tooltip">PM → UI/UX → Backend → Security → Data 完整軟體生命週期覆蓋</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">24h</div>
+    <div class="stat-label">MCP 文檔刷新週期</div>
+    <div class="stat-tooltip">Developer Knowledge API 每 24 小時更新，消除 AI 知識截止時間問題</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">0</div>
+    <div class="stat-label">個 API Key 需要</div>
+    <div class="stat-tooltip">Application Default Credentials (ADC) 免密鑰存取 Google Cloud 模型</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">1</div>
+    <div class="stat-label">個連結獲 Dashboard</div>
+    <div class="stat-tooltip">從終端機原始數據到完整 Looker 互動式儀表板，只需一個指令</div>
+  </div>
+</div>
+
+<nav class="nav-wrap">
+  <div class="container">
+    <div class="nav-inner">
+      <button class="tab-btn active" data-tab="0">I · 總覽</button>
+      <button class="tab-btn" data-tab="1">II · 雲端優勢</button>
+      <button class="tab-btn" data-tab="2">III · 五帽演練</button>
+      <button class="tab-btn" data-tab="3">IV · MCP &amp; 資料</button>
+      <button class="tab-btn" data-tab="4">V · 思考題</button>
+      <div class="tab-indicator"></div>
+    </div>
+  </div>
+</nav>
+
+<article>
+  <div class="container">
+
+    <!-- TAB I: 總覽 -->
+    <div class="tab-content active" id="tab-0">
+
+      <section class="chapter">
+        <span class="roman">I</span>
+        <h2>無摩擦開發的願景</h2>
+        <p class="lede">Emanuele Nardini 的演講從一個場景調查開始：大多數人這週使用了 AI 編碼工具，但極少數人真正將其部署至 Google Cloud。這場演講的目標，就是補上這道落差。</p>
+        <p>企業軟體開發向來需要一整個團隊：產品經理提出構想、UI/UX 設計師將其視覺化、後端工程師建構核心邏輯、安全工程師確保合規、數據分析師收集洞察。而 Claude Code 的核心主張是：它不取代這個團隊，而是<strong>增強整個生命週期</strong>的效能。</p>
+        <p>演講者以一個「五帽實驗」來驗證這個主張——一個人，在 28 分鐘內，完成一個從草圖到生產環境部署的完整 Feedback App，並實時從 BigQuery 產出 Looker 互動儀表板。</p>
+
+        <div class="pullquote">
+          <p><strong>"Claude Code provides a set of capabilities that will essentially augment them across this entire software life cycle."</strong>
+          <span class="zh">「Claude Code 提供了一系列能力，能夠在整個軟體生命週期中強化每一個角色的效能。」</span></p>
+          <cite>— Emanuele Nardini, Google Cloud Developer Advocate</cite>
+        </div>
+
+        <aside class="primer">
+          <span class="primer-tag">給初學者 · 一句話搞懂「軟體生命週期」</span>
+          <h5>為什麼一個 App 需要「五種人」？</h5>
+          <p>想像你要蓋一棟房子。你需要：建築師畫圖、室內設計師規劃空間、工程師建結構、消防局驗安全、物業管理收集住戶反饋。軟體開發也一樣——每個階段有不同的專業。</p>
+          <ul>
+            <li><strong>PM（產品經理）</strong>：決定蓋什麼，畫草圖</li>
+            <li><strong>UI/UX 工程師</strong>：設計外觀和使用動線</li>
+            <li><strong>後端工程師</strong>：建造水電管線（邏輯和資料庫）</li>
+            <li><strong>安全工程師</strong>：消防驗收，確保沒有漏洞</li>
+            <li><strong>數據分析師</strong>：記錄住戶行為，持續優化</li>
+          </ul>
+          <p>Claude Code 的野心是：它能協助所有五個角色完成工作，不是取代任何一個，而是讓每個人都跑得更快。</p>
+        </aside>
+      </section>
+
+      <section class="chapter">
+        <span class="roman">I</span>
+        <h2>核心洞見速覽</h2>
+        <div class="stack">
+          <div class="stack-item">
+            <span class="s-roman">I</span>
+            <div class="s-body">
+              <h4>Planning Mode 先思考後行動</h4>
+              <p>Claude Code 的規劃模式讓 AI 在撰寫程式碼前先提案、確認，減少因誤解需求造成的無效工作。這是「副駕駛→專案代理人」進化的關鍵一步。</p>
+            </div>
+          </div>
+          <div class="stack-item">
+            <span class="s-roman">II</span>
+            <div class="s-body">
+              <h4>Sub-agents 平行化等於虛擬衝刺</h4>
+              <p>一個指令，三個子代理人同時建構 API、數據管線和儀表板，就像 Agile Sprint 中的跨功能小隊——只是全部都在 terminal 裡發生。</p>
+            </div>
+          </div>
+          <div class="stack-item">
+            <span class="s-roman">III</span>
+            <div class="s-body">
+              <h4>MCP 每 24 小時刷新解決知識時差</h4>
+              <p>大語言模型有訓練截止時間，但 Developer Knowledge API MCP Server 讓 Claude 永遠拿到最新的 Google Cloud 文件，消除 Hallucination 的根源。</p>
+            </div>
+          </div>
+          <div class="stack-item">
+            <span class="s-roman">IV</span>
+            <div class="s-body">
+              <h4>ADC 免密鑰是企業採用的催化劑</h4>
+              <p>Application Default Credentials 讓工程師無需儲存或輪換 API Key，資料完全留在自己的 GCP 專案，直接消除企業安全合規的最大阻力。</p>
+            </div>
+          </div>
+          <div class="stack-item">
+            <span class="s-roman">V</span>
+            <div class="s-body">
+              <h4>客製化 Plugin 讓安全檢查自動化</h4>
+              <p>安全帽環節的 OWASP Plugin 示範了一個重要模式：把公司特有的安全規則編碼進 Claude Code，讓每次部署都自動過審，而非依賴人工 review。</p>
+            </div>
+          </div>
+          <div class="stack-item">
+            <span class="s-roman">VI</span>
+            <div class="s-body">
+              <h4>從草圖到 Looker：真正的端對端覆蓋</h4>
+              <p>演講最驚人的不是單一功能，而是完整性。從 PM 的紙上草圖，到數據分析師的互動儀表板，Claude Code 在每一個環節都有對應的工具。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- TAB II: 雲端優勢 -->
+    <div class="tab-content" id="tab-1">
+
+      <section class="chapter">
+        <span class="roman">II</span>
+        <h2>為什麼在 Google Cloud 上執行 Claude？</h2>
+        <p class="lede">Google Cloud 不只是 Claude 模型的一個執行平台，它帶來了傳統 API 存取無法提供的企業級優勢：免密鑰存取、資料主權、高可用性，以及專屬的開發者工具生態。</p>
+
+        <aside class="primer">
+          <span class="primer-tag">給初學者 · 一句話搞懂「Application Default Credentials」</span>
+          <h5>ADC 是什麼？為什麼「免密鑰」很重要？</h5>
+          <p>想像你在公司辦公室用員工識別證刷卡進門，這就是 ADC 的概念——你的「身份」由環境決定，不需要額外拿一把鑰匙（API Key）。</p>
+          <ul>
+            <li><strong>傳統方式</strong>：申請 API Key → 存在環境變數 → 每隔幾個月手動輪換 → 萬一洩漏就全完了</li>
+            <li><strong>ADC 方式</strong>：登入 Google Cloud 帳號 → 環境自動識別 → 無需任何密鑰</li>
+          </ul>
+          <p>對企業來說，消除 API Key 就是消除最常見的安全漏洞來源之一。</p>
+        </aside>
+
+        <h3>五大核心優勢</h3>
+        <div class="ledger">
+          <div class="ledger-row">
+            <div class="l-label">按 Token 計費</div>
+            <div class="l-desc">無每小時訊息次數上限，適合高頻率企業級使用；超出基礎容量可申請 Provisioned Throughput</div>
+            <div class="l-num">∞</div>
+          </div>
+          <div class="ledger-row">
+            <div class="l-label">ADC 免密鑰存取</div>
+            <div class="l-desc">Application Default Credentials 自動偵測環境憑證，無需儲存或輪換 API Key</div>
+            <div class="l-num">0 Keys</div>
+          </div>
+          <div class="ledger-row">
+            <div class="l-label">資料主權</div>
+            <div class="l-desc">Session 中使用的資料完全留存在用戶自己的 GCP 專案內，不外流至第三方</div>
+            <div class="l-num">100%</div>
+          </div>
+          <div class="ledger-row">
+            <div class="l-label">多區域高可用</div>
+            <div class="l-desc">Claude 模型在 Google Cloud 全球多區域端點提供服務，具備 SLA 品質保障</div>
+            <div class="l-num">Multi</div>
+          </div>
+          <div class="ledger-row">
+            <div class="l-label">開發者生態整合</div>
+            <div class="l-desc">官方 GCloud Skills、Developer Knowledge API MCP Server 深度整合雲端工具鏈</div>
+            <div class="l-num">2 MCPs</div>
+          </div>
+        </div>
+
+        <aside class="primer">
+          <span class="primer-tag">給初學者 · 一句話搞懂「Provisioned Throughput」</span>
+          <h5>預留吞吐量是什麼？</h5>
+          <p>就像高速公路的 ETC 車道——一般用戶走共享車道（有時塞車），大流量用戶可以買「專用車道」保障行車速度。</p>
+          <ul>
+            <li>適合：大規模生產應用、需要穩定 QPS（每秒查詢數）的服務</li>
+            <li>效果：不受其他用戶流量影響，SLA 保障可用性</li>
+          </ul>
+          <p>對於要把 Claude 整合進企業核心系統的公司，Provisioned Throughput 是可預測性的保障。</p>
+        </aside>
+      </section>
+
+      <section class="chapter">
+        <span class="roman">II</span>
+        <h2>初始化設定：三步驟</h2>
+
+        <div class="code-block">
+          <span class="cmt"># 步驟 1：登入 Google Cloud</span><br>
+          <span class="kw">gcloud</span> auth application-default login<br><br>
+          <span class="cmt"># 步驟 2：在 Claude Code 中選擇 Google Cloud 作為 provider</span><br>
+          <span class="cmt"># 精靈模式會自動偵測：專案 ID、可用區域、支援的 Claude 模型</span><br><br>
+          <span class="cmt"># 步驟 3：Pin 你在這次 Coding Session 要使用的模型</span><br>
+          <span class="cmt"># 之後所有呼叫都透過 Google Cloud 路由，資料留在你的專案中</span>
+        </div>
+
+        <div class="story">
+          <span class="story-tag">這個細節很重要</span>
+          <h4>「什麼都沒變」的魔法</h4>
+          <p>Emanuele 在說明設定流程時強調：「Nothing change with respect to your environment.」工程師繼續使用熟悉的 Claude Code 介面，繼續寫同樣的提示詞——唯一改變的是底層的計費和資料路由，以及多了一層企業安全保障。</p>
+          <blockquote>"You don't need some API key to store or rotate or anything of these things."</blockquote>
+          <p>這是設計上的智慧：最好的安全機制，是讓工程師感覺不到它的存在。ADC 讓安全合規變成「預設狀態」，而非「額外負擔」。</p>
+        </div>
+
+        <aside class="primer">
+          <span class="primer-tag">給初學者 · 一句話搞懂「多區域端點」</span>
+          <h5>為什麼「多區域」對企業很重要？</h5>
+          <p>想像你是一家跨國公司的工程師。如果 AI 服務只在美國有伺服器，那你在歐洲的用戶每次呼叫都要繞地球一圈——速度慢、GDPR 合規也有風險。</p>
+          <ul>
+            <li><strong>多區域端點</strong>：Claude 在各大洲都有伺服器，請求就近處理</li>
+            <li><strong>SLA 保障</strong>：服務水準協議確保 99.9%+ 可用性，宕機有賠償</li>
+            <li><strong>合規優勢</strong>：歐洲資料可設定留在歐洲，符合 GDPR</li>
+          </ul>
+          <p>對企業 IT 部門來說，這三點合在一起，才是真正「可以採購」的條件。</p>
+        </aside>
+      </section>
+
+    </div>
+
+    <!-- TAB III: 五帽演練 -->
+    <div class="tab-content" id="tab-2">
+
+      <section class="chapter">
+        <span class="roman">III</span>
+        <h2>五個帽子，一個應用</h2>
+        <p class="lede">Emanuele 在台上戴上五頂不同的帽子，在 28 分鐘內，以一個真實的 Feedback App，跑完企業軟體開發的完整生命週期。每個帽子代表一個角色，每個角色都有對應的 Claude Code 工具。</p>
+
+        <div class="hat-pipeline">
+          <div class="hat-step">
+            <span class="hat-num">HAT 1</span>
+            <div class="hat-icon">📋</div>
+            <div class="hat-title">產品經理</div>
+            <div class="hat-subtitle">草圖 → Wireframe</div>
+          </div>
+          <div class="hat-step">
+            <span class="hat-num">HAT 2</span>
+            <div class="hat-icon">🎨</div>
+            <div class="hat-title">UI/UX 工程師</div>
+            <div class="hat-subtitle">Planning Mode</div>
+          </div>
+          <div class="hat-step">
+            <span class="hat-num">HAT 3</span>
+            <div class="hat-icon">⚙️</div>
+            <div class="hat-title">後端工程師</div>
+            <div class="hat-subtitle">Sub-agents + MCP</div>
+          </div>
+          <div class="hat-step">
+            <span class="hat-num">HAT 4</span>
+            <div class="hat-icon">🔒</div>
+            <div class="hat-title">安全工程師</div>
+            <div class="hat-subtitle">Security Plugin</div>
+          </div>
+          <div class="hat-step">
+            <span class="hat-num">HAT 5</span>
+            <div class="hat-icon">📊</div>
+            <div class="hat-title">數據分析師</div>
+            <div class="hat-subtitle">BigQuery + Looker</div>
+          </div>
+        </div>
+
+        <aside class="primer">
+          <span class="primer-tag">給初學者 · 一句話搞懂「Planning Mode」</span>
+          <h5>規劃模式：先想清楚，再動手</h5>
+          <p>你有沒有遇過叫 AI 寫程式，結果它理解錯需求，白白浪費了 10 分鐘？Planning Mode 就是為了解決這個問題。</p>
+          <ul>
+            <li><strong>一般模式</strong>：給指令 → Claude 直接開始寫程式碼</li>
+            <li><strong>Planning Mode</strong>：給指令 → Claude 先列出完整規格提案 → 你確認 → 才開始寫</li>
+          </ul>
+          <p>就像蓋房子前先畫藍圖，Planning Mode 讓你在零行程式碼的情況下，先對齊對最終成果的預期，避免後續大規模返工。</p>
+        </aside>
+      </section>
+
+      <section class="chapter">
+        <span class="roman">III</span>
+        <h2>Hat 1 &amp; 2：從草圖到生產介面</h2>
+
+        <div class="story">
+          <span class="story-tag">Hat 1 的故事</span>
+          <h4>PM 不懂 Git，但 Claude 懂</h4>
+          <p>演講最有趣的細節之一：Hat 1 的場景中，PM 甚至不懂如何使用 Git。但 Emanuele 在 claude.md 中定義了環境配置後，Claude Code 不只渲染了 Wireframe，還自動把它提交到 GitHub 並建立了 PR。</p>
+          <blockquote>"Notice, this is a PM that probably doesn't know how to use Git, but because the way we define our environment with Claude Code, it's also able to submit this wireframe that you see here on a GitHub repository."</blockquote>
+          <p>這個細節揭示了 Claude Code 的一個核心設計哲學：通過 claude.md 的環境定義，工具的能力可以超越操作者本身的技術水平。PM 做 PM 的決策，底層技術由 AI 代為執行。</p>
+        </div>
+
+        <div class="duo">
+          <div class="card">
+            <h4>Hat 1 工具鏈</h4>
+            <p><span class="term" data-def="claude.md：Claude Code 的專案配置文件，定義角色、規則和環境設定">claude.md</span> 定義 PM 角色 → 上傳草圖照片 → Claude 渲染 Wireframe → 自動建立 GitHub PR</p>
+          </div>
+          <div class="card">
+            <h4>Hat 2 工具鏈</h4>
+            <p>接收 Wireframe → 啟用 <span class="term" data-def="Planning Mode：讓 Claude 先提出規格提案，確認後才開始撰寫程式碼">Planning Mode</span> → 確認 4 頁規格（Landing/感謝/Dashboard/API）→ 一鍵生成 → 合併 PR</p>
+          </div>
+        </div>
+
+        <p>UI/UX 工程師的 Planning Mode 工作流特別值得注意：Claude 為 4 個頁面建立了詳細規格文件，包括路由設計、元件清單和狀態管理方案。只有在工程師確認「I'm good with that」之後，才開始生成程式碼。在現實場景中，這個步驟可以連接 Figma 來獲取設計規範，進一步提升精確度。</p>
+
+        <aside class="primer">
+          <span class="primer-tag">給初學者 · 一句話搞懂「claude.md」</span>
+          <h5>claude.md 是 Claude Code 的「工作說明書」</h5>
+          <p>就像新員工入職前會收到一份職位說明書（JD），claude.md 就是你給 Claude 的 JD——告訴它這次要扮演什麼角色、遵守什麼規則、有哪些工具可以用。</p>
+          <ul>
+            <li>放在專案根目錄，Claude Code 啟動時自動載入</li>
+            <li>可定義角色（「你現在是安全工程師」）</li>
+            <li>可設定限制（「不要修改 production 資料庫」）</li>
+            <li>可列出可用工具和 MCP 伺服器</li>
+          </ul>
+          <p>五帽演練中，每個 Hat 切換都是更換 claude.md 中的角色定義——同一個工具，五種身份。</p>
+        </aside>
+      </section>
+
+      <section class="chapter">
+        <span class="roman">III</span>
+        <h2>Hat 3：後端工程與 CI/CD 流水線</h2>
+
+        <p class="lede">後端工程師的環節是演講中技術密度最高的部分：Sub-agents 平行化開發、MCP Server 查詢官方文件、Google Cloud Skills 建立 CI/CD Pipeline，最終在 Cloud Run 上自動完成部署。</p>
+
+        <h3>Sub-agents 平行化工作流</h3>
+        <p>Hat 3 的指令觸發了三個同時運行的子代理人：</p>
+        <div class="ledger">
+          <div class="ledger-row">
+            <div class="l-label">Sub-agent A</div>
+            <div class="l-desc">建構 REST API（Cloud Run 上的 FastAPI/Node.js），包含端點設計、單元測試、容器化</div>
+            <div class="l-num">API</div>
+          </div>
+          <div class="ledger-row">
+            <div class="l-label">Sub-agent B</div>
+            <div class="l-desc">建構 Firestore → BigQuery 數據管線，負責 Feedback 表單資料的即時同步和轉換</div>
+            <div class="l-num">Pipeline</div>
+          </div>
+          <div class="ledger-row">
+            <div class="l-label">Sub-agent C</div>
+            <div class="l-desc">建構 Dashboard 視圖（前端介面），整合 API 和資料庫的即時數據顯示</div>
+            <div class="l-num">Dashboard</div>
+          </div>
+        </div>
+
+        <h3>CI/CD Pipeline 架構</h3>
+        <div class="cicd-flow">
+          <div class="cicd-step">GitHub PR Merge</div>
+          <span class="cicd-arrow">→</span>
+          <div class="cicd-step highlight">Cloud Build (CI)</div>
+          <span class="cicd-arrow">→</span>
+          <div class="cicd-step">單元測試</div>
+          <span class="cicd-arrow">→</span>
+          <div class="cicd-step">Container Build</div>
+          <span class="cicd-arrow">→</span>
+          <div class="cicd-step highlight">Cloud Deploy (CD)</div>
+          <span class="cicd-arrow">→</span>
+          <div class="cicd-step">Dev 環境</div>
+          <span class="cicd-arrow">→</span>
+          <div class="cicd-step">Production 升級</div>
+        </div>
+
+        <aside class="primer">
+          <span class="primer-tag">給初學者 · 一句話搞懂「CI/CD Pipeline」</span>
+          <h5>CI/CD 是什麼？為什麼重要？</h5>
+          <p>CI/CD 就像汽車工廠的自動化生產線。工程師的程式碼（零件）一進倉庫，流水線自動測試品質（CI）、然後自動裝配出廠（CD），不需要人工逐步操作。</p>
+          <ul>
+            <li><strong>CI（持續整合）</strong>：每次提交程式碼，自動執行測試，確保沒有破壞現有功能</li>
+            <li><strong>CD（持續部署）</strong>：測試通過後，自動部署到伺服器</li>
+            <li><strong>Cloud Build</strong>：Google 的 CI 服務，負責測試和打包</li>
+            <li><strong>Cloud Deploy</strong>：Google 的 CD 服務，負責版本管理和環境升級</li>
+          </ul>
+          <p>Claude Code 在這裡的貢獻是：自動生成 CI/CD 的配置文件（YAML/Dockerfile），把本來需要 DevOps 專家數小時才能設置好的流水線，壓縮到幾分鐘。</p>
+        </aside>
+
+        <div class="story">
+          <span class="story-tag">關鍵時刻</span>
+          <h4>merge 那一秒，流水線啟動了</h4>
+          <p>演講現場，當 Emanuele 在 GitHub 點下 Merge PR 按鈕的那一刻，Google Cloud 的 Cloud Build 自動觸發了一個構建流水線。台下觀眾在大螢幕上實時看到：API 的構建日誌、BigQuery 管線的初始化、最終 Cloud Deploy 推送一個新版本到開發環境，並自動等待升級確認。</p>
+          <blockquote>"Once this pipeline finish to run, it will push a new release on the continuous deployment tool... and it will trigger a release."</blockquote>
+          <p>這個 Demo 的設計很聰明：它不是事先準備好的結果展示，而是讓觀眾即時看到整個自動化鏈條的每個環節。這種「真實性」比任何 slide 都更有說服力。</p>
+        </div>
+      </section>
+
+      <section class="chapter">
+        <span class="roman">III</span>
+        <h2>Hat 4：安全工程師與 Plugin 機制</h2>
+
+        <p class="lede">在應用程式進入生產環境前，安全工程師的帽子上場了。這個環節展示了如何把公司特有的安全規則，編碼成 Claude Code Plugin，讓安全審查變成可重複、可自動化的流程。</p>
+
+        <div class="duo">
+          <div class="card">
+            <h4>Plugin 做了什麼？</h4>
+            <p>自訂 OWASP Top 10 漏洞掃描 + Service Account 權限最小化審查。Claude 發現 Input Validation 不足後，自動修正程式碼、重跑測試、重新提交 PR。</p>
+          </div>
+          <div class="card">
+            <h4>為什麼用 Plugin 而非手動 review？</h4>
+            <p>每家公司的安全要求不同。Plugin 讓這些特有規則變成<strong>可版本控制、可共享、可演化</strong>的知識資產，而非靠個別工程師的記憶傳承。</p>
+          </div>
+        </div>
+
+        <aside class="primer">
+          <span class="primer-tag">給初學者 · 一句話搞懂「OWASP Top 10」</span>
+          <h5>OWASP Top 10 是 Web 安全的「必考題清單」</h5>
+          <p>OWASP（Open Web Application Security Project）每幾年發布一次最常見的 Web 安全漏洞前 10 名。這是業界共識的「最低標準」。</p>
+          <ul>
+            <li><strong>No.1 Broken Access Control</strong>：未授權用戶存取了不該存取的資源</li>
+            <li><strong>No.3 Injection</strong>：SQL 注入、命令注入等</li>
+            <li><strong>No.7 Identification &amp; Auth Failures</strong>：認證漏洞</li>
+            <li><strong>Input Validation</strong>（本次 Demo 發現的）：對用戶輸入未做充分驗證</li>
+          </ul>
+          <p>Claude 的安全 Plugin 掃描這些已知漏洞，就像讓一個熟記所有常見漏洞的資安工程師，自動跑了一遍程式碼審查。</p>
+        </aside>
+
+        <p>升級（Promotion）機制值得特別注意：Cloud Deploy 的設計要求在每次從 Dev 升級到 Production 時，有一個明確的人工確認步驟。Claude Code 自動建立了這個審核節點，確保自動化不會完全繞過人類判斷。</p>
+      </section>
+
+    </div>
+
+    <!-- TAB IV: MCP & 資料 -->
+    <div class="tab-content" id="tab-3">
+
+      <section class="chapter">
+        <span class="roman">IV</span>
+        <h2>Developer Knowledge API：解決 AI 的知識時差</h2>
+        <p class="lede">大語言模型最根本的限制之一是訓練截止時間——模型不知道訓練截止日之後發布的 API、新服務、最佳實踐。Developer Knowledge API 是 Google Cloud 為這個問題提出的系統性解答。</p>
+
+        <div class="freshness-compare">
+          <h4 style="margin-bottom: 16px; font-size: 16px; color: var(--ink-faint); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.1em;">知識新鮮度對比</h4>
+          <div class="freshness-row">
+            <div class="freshness-label">傳統 LLM 知識</div>
+            <div class="freshness-bar"><div class="freshness-fill freshness-stale" id="stale-bar" data-w="30">訓練截止：6-18 個月前</div></div>
+            <div class="freshness-val" style="color: #888;">陳舊</div>
+          </div>
+          <div class="freshness-row">
+            <div class="freshness-label">MCP Server 知識</div>
+            <div class="freshness-bar"><div class="freshness-fill freshness-fresh" id="fresh-bar" data-w="95">每 24 小時更新</div></div>
+            <div class="freshness-val" style="color: var(--moss);">即時</div>
+          </div>
+        </div>
+
+        <div class="pullquote">
+          <p><strong>"With the Developer Knowledge API, Claude gets access to fresh documentation and implementation guides that get refreshed every 24 hours."</strong>
+          <span class="zh">「透過 Developer Knowledge API，Claude 能存取每 24 小時更新一次的最新官方技術文件和實作指南。」</span></p>
+          <cite>— Emanuele Nardini, Google Cloud Developer Advocate</cite>
+        </div>
+
+        <aside class="primer">
+          <span class="primer-tag">給初學者 · 一句話搞懂「MCP Server 的運作原理」</span>
+          <h5>MCP Server 就像 AI 的「實時查閱圖書館」</h5>
+          <p>想像你有一個非常聰明的同事，但他最後一次讀技術文件是一年前。現在你讓他幫你用最新版的 Cloud Run 部署應用——他可能會用舊 API，或者對新功能一無所知。</p>
+          <ul>
+            <li><strong>沒有 MCP</strong>：Claude 只知道訓練截止日前的 Google Cloud 功能</li>
+            <li><strong>有 MCP</strong>：Claude 在回答前，先查詢 MCP Server 獲取最新文件，再做出建議</li>
+          </ul>
+          <p>MCP Server 是 AI 的實時外掛資料庫。它讓 AI 的「書架」永遠是最新版，而不是出版時的快照。</p>
+        </aside>
+
+        <h3>MCP Server 查詢示範</h3>
+        <div class="code-block">
+          <span class="cmt"># Claude 在 Hat 3 中的 MCP 查詢流程（示意）</span><br><br>
+          <span class="kw">User:</span> 設計一個 Feedback API，部署在 Cloud Run，使用 Firestore 儲存，並將數據同步到 BigQuery<br><br>
+          <span class="cmt"># Claude 自動查詢 Developer Knowledge API MCP Server：</span><br>
+          <span class="str">→ 查詢 "Cloud Run deployment 2026 best practices"</span><br>
+          <span class="str">→ 查詢 "Firestore to BigQuery streaming pipeline"</span><br>
+          <span class="str">→ 查詢 "Cloud Run service account permissions"</span><br><br>
+          <span class="cmt"># 基於最新文件，提出架構方案（非憑記憶猜測）</span>
+        </div>
+      </section>
+
+      <section class="chapter">
+        <span class="roman">IV</span>
+        <h2>Google Cloud 技術架構全圖</h2>
+
+        <p class="lede">Feedback App 的完整架構橫跨六個 Google Cloud 服務，而且每一個服務的配置都是由 Claude 查詢 MCP Server 後自動生成的，而非工程師手動設定。</p>
+
+        <div class="cloud-arch">
+          <div class="cloud-node">
+            <div class="cloud-node-icon">☁️</div>
+            <div class="cloud-node-name">Cloud Run</div>
+            <div class="cloud-node-desc">Serverless 執行 API</div>
+          </div>
+          <div class="cloud-node">
+            <div class="cloud-node-icon">🔥</div>
+            <div class="cloud-node-name">Firestore</div>
+            <div class="cloud-node-desc">NoSQL 即時資料庫</div>
+          </div>
+          <div class="cloud-node">
+            <div class="cloud-node-icon">📦</div>
+            <div class="cloud-node-name">BigQuery</div>
+            <div class="cloud-node-desc">分析型資料倉儲</div>
+          </div>
+          <div class="cloud-node">
+            <div class="cloud-node-icon">🔨</div>
+            <div class="cloud-node-name">Cloud Build</div>
+            <div class="cloud-node-desc">CI 持續整合</div>
+          </div>
+          <div class="cloud-node">
+            <div class="cloud-node-icon">🚀</div>
+            <div class="cloud-node-name">Cloud Deploy</div>
+            <div class="cloud-node-desc">CD 持續部署</div>
+          </div>
+          <div class="cloud-node">
+            <div class="cloud-node-icon">📊</div>
+            <div class="cloud-node-name">Looker</div>
+            <div class="cloud-node-desc">互動式 BI 儀表板</div>
+          </div>
+        </div>
+
+        <aside class="primer">
+          <span class="primer-tag">給初學者 · 一句話搞懂「BigQuery vs Firestore」</span>
+          <h5>兩種資料庫，兩種用途</h5>
+          <p>就像「冰箱」和「糧倉」——兩個都是存食物的地方，但用途完全不同。</p>
+          <ul>
+            <li><strong>Firestore（冰箱）</strong>：快速存取、即時讀寫、適合 App 的操作型資料（用戶提交的 Feedback 表單）</li>
+            <li><strong>BigQuery（糧倉）</strong>：大量歷史資料、複雜分析查詢、適合計算統計、挖掘趨勢</li>
+            <li><strong>數據管線</strong>：把冰箱的食材定期搬到糧倉，讓分析師可以對大量歷史數據做研究</li>
+          </ul>
+          <p>Claude 在 Hat 3 同時建構了這兩個資料庫的 Schema，以及把 Firestore 數據流向 BigQuery 的管線——而且全部基於官方 MCP 文件中的最佳實踐。</p>
+        </aside>
+      </section>
+
+      <section class="chapter">
+        <span class="roman">IV</span>
+        <h2>Hat 5：從原始數據到 Looker 儀表板</h2>
+
+        <p class="lede">最後一個帽子屬於數據分析師。目標是衡量用戶填寫 Feedback 表單需要多長時間——如果太長，代表 UX 需要優化。沒有人工 SQL 查詢，沒有手動建立報表，只有兩個 MCP Server 指令。</p>
+
+        <div class="story">
+          <span class="story-tag">Hat 5 的完整流程</span>
+          <h4>一個鏈接，從終端機到 Looker</h4>
+          <p>Hat 5 的流程展示了現代 AI 輔助分析的極端效率：BigQuery MCP Server 直接連接倉儲，分析 Firestore 導入的原始表單數據，在終端機中計算出平均填寫時間和統計分布。</p>
+          <p>但數據還在終端機裡——PM 看不懂。這時，第二個 MCP Server（Looker MCP）接手，把那些數字自動轉換成互動式儀表板，包括時間分布圖、百分位數比較，以及概率分布疊加圖。</p>
+          <blockquote>"Even if you don't know like a dashboard tool, you were able to build this using Claude Code and the MCP server that we provide."</blockquote>
+          <p>PM 打開那個鏈接，看到的是一個完整的 Looker Dashboard——可以篩選時間範圍、對比不同頁面的填寫時間，甚至識別出哪個步驟讓用戶花最多時間。這個洞察直接指向下一輪 UX 優化的方向。</p>
+        </div>
+
+        <div class="bar-chart">
+          <h4 style="margin-bottom: 20px;">分析能力對比：傳統方式 vs MCP 輔助</h4>
+          <div class="bar-row">
+            <div class="bar-label">BigQuery SQL 查詢</div>
+            <div class="bar-track"><div class="bar-fill" data-w="90" data-text="MCP 自動生成"></div></div>
+            <div class="bar-val">3 min</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">Looker Dashboard</div>
+            <div class="bar-track"><div class="bar-fill" data-w="95" data-text="MCP 自動生成"></div></div>
+            <div class="bar-val">5 min</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">傳統方式（SQL+手動建表）</div>
+            <div class="bar-track"><div class="bar-fill" data-w="20" style="background: #aaa;" data-text="需要 2-3 天"></div></div>
+            <div class="bar-val">~2 days</div>
+          </div>
+        </div>
+
+        <aside class="primer">
+          <span class="primer-tag">給初學者 · 一句話搞懂「Looker 和 BI 工具」</span>
+          <h5>商業智能（BI）工具解決的問題</h5>
+          <p>資料庫是給工程師看的。PM 和管理層需要的是「圖表和趨勢」，不是一行行數字。BI 工具就是把資料庫裡的數字，轉換成可以互動、可以展示、可以做決策的視覺化介面。</p>
+          <ul>
+            <li><strong>Looker（Google）</strong>：雲端 BI 工具，可連接 BigQuery</li>
+            <li><strong>Tableau / Power BI</strong>：市場上的競品，原理相同</li>
+            <li><strong>過去的問題</strong>：需要專門的 BI 工程師花幾天建立儀表板</li>
+            <li><strong>Looker MCP</strong>：Claude 直接調用 Looker API，自動生成儀表板結構</li>
+          </ul>
+          <p>這是「民主化分析」的下一步：不只是工程師能寫 SQL，連 MCP Server 都能幫你把 SQL 轉成儀表板。</p>
+        </aside>
+      </section>
+
+    </div>
+
+    <!-- TAB V: 思考題 -->
+    <div class="tab-content" id="tab-4">
+
+      <section class="chapter">
+        <span class="roman">V</span>
+        <h2>深度思考題</h2>
+        <p class="lede">這六道問題從 Emanuele 的演講出發，向外延伸至更廣的技術趨勢和職涯思考。每道題附有四個建議切入角度。</p>
+
+        <div class="discuss">
+          <p>Q1：ADC（Application Default Credentials）消除了 API Key，但這是否也引入了新的安全風險？「隱式憑證」比「顯式密鑰」是否真的更安全？</p>
+          <details>
+            <summary>查看建議思考方向</summary>
+            <ul>
+              <li><strong>歷史對照：</strong>OAuth 2.0 和 Service Account Key 的安全事故記錄——哪個洩漏頻率更高？Google 的 Key Guardian 統計數據。</li>
+              <li><strong>講者隱含的論點：</strong>Emanuele 的重點不只是「安全」，而是「安全的摩擦力」——過高的安全摩擦（複雜的密鑰管理）會導致工程師走捷徑，反而更不安全。</li>
+              <li><strong>職涯啟發：</strong>如果你在企業內部推廣 AI 工具，安全合規通常是最大的阻礙。理解「零摩擦安全」的設計哲學，能讓你的提案更容易被 CISO 接受。</li>
+              <li><strong>反向思考：</strong>ADC 依賴環境身份，意味著「誰控制了執行環境，就控制了 API 存取權限」。這在 CI/CD 環境中可能引入新的攻擊面——如果有人汙染了 CI 伺服器，後果是什麼？</li>
+            </ul>
+          </details>
+        </div>
+
+        <div class="discuss">
+          <p>Q2：Planning Mode 讓 AI 先「思考後提案」再執行。這個設計和傳統軟體工程中的「需求文件」有什麼本質差異？這對敏捷開發（Agile）的衝擊是什麼？</p>
+          <details>
+            <summary>查看建議思考方向</summary>
+            <ul>
+              <li><strong>歷史對照：</strong>瀑布式開發（Waterfall）強制要求詳細需求文件，Agile 刻意避免過早規格化。Planning Mode 是第三條路嗎？</li>
+              <li><strong>講者隱含的論點：</strong>Planning Mode 解決的不是「需要不需要規格」的問題，而是「AI 在不確定時傾向猜測而非詢問」的行為模式。這是 AI 代理人特有的挑戰。</li>
+              <li><strong>職涯啟發：</strong>PM 和工程師的溝通成本是軟體開發的最大浪費之一。如果 Planning Mode 能機器化地降低這個成本，那 PM 的核心價值在哪裡？</li>
+              <li><strong>反向思考：</strong>有時候「先做後改」比「先規格後做」更快。Planning Mode 是否增加了整體交付時間？在什麼場景下應該跳過它？</li>
+            </ul>
+          </details>
+        </div>
+
+        <div class="discuss">
+          <p>Q3：MCP Server 每 24 小時刷新文件，幫助 Claude 避免 Hallucination。但 MCP Server 本身提供的文件，Claude 是否會完全相信而不做批判性驗證？這是否只是把 Hallucination 的源頭移了位置？</p>
+          <details>
+            <summary>查看建議思考方向</summary>
+            <ul>
+              <li><strong>歷史對照：</strong>RAG（Retrieval-Augmented Generation）技術同樣試圖用「查詢再生成」解決知識截止問題，但 RAG 準確性高度依賴檢索品質。MCP 和 RAG 的區別是什麼？</li>
+              <li><strong>講者隱含的論點：</strong>Emanuele 聲稱 MCP 解決了 Hallucination，但演講中的例子都是「查詢成功、架構正確」的案例。系統性錯誤的場景呢？</li>
+              <li><strong>職涯啟發：</strong>如果你負責建構公司內部的 MCP Server（如公司私有 API 文件），你需要考慮哪些資料品質保障機制？文件本身的錯誤、過時或不完整該怎麼處理？</li>
+              <li><strong>反向思考：</strong>訓練數據中的「通用程式設計知識」vs. MCP Server 中的「特定服務文件」——哪個對 Claude 的決策品質影響更大？是否存在兩者相互矛盾的情況？</li>
+            </ul>
+          </details>
+        </div>
+
+        <div class="discuss">
+          <p>Q4：Sub-agents 並行開發能加速工作，但也引入了協作一致性的風險——三個 Sub-agent 分別建構 API、數據管線和 Dashboard，它們的介面定義如何保持同步？</p>
+          <details>
+            <summary>查看建議思考方向</summary>
+            <ul>
+              <li><strong>歷史對照：</strong>微服務架構（Microservices）同樣面臨服務間介面一致性問題，業界發展出了 Contract Testing、API Schema Registry 等解決方案。Sub-agents 是否需要類似的機制？</li>
+              <li><strong>講者隱含的論點：</strong>演講中，三個 Sub-agents 是由一個 API Specification 作為「合約」來協調的。這個細節很重要——「共享合約先行」是分散式開發的核心原則。</li>
+              <li><strong>職涯啟發：</strong>作為一個架構師，設計 Multi-agent 系統時，「合約定義」在哪個時間點、由哪個 Agent 負責生成，是關鍵的設計決策。</li>
+              <li><strong>反向思考：</strong>並行化的效益在什麼條件下會消失？如果 Sub-agents 生成的程式碼有衝突，解決衝突的成本是否可能超過並行帶來的收益？</li>
+            </ul>
+          </details>
+        </div>
+
+        <div class="discuss">
+          <p>Q5：「客製化 Security Plugin」讓安全規則可程式化、可版本化。但這是否意味著只有規則清單內的安全問題才會被檢查？未知漏洞（Zero-day）和特定業務邏輯漏洞怎麼辦？</p>
+          <details>
+            <summary>查看建議思考方向</summary>
+            <ul>
+              <li><strong>歷史對照：</strong>靜態程式碼分析工具（如 SonarQube）的侷限性——它們能找到已知模式，但無法理解業務語義。Claude 的 LLM 能力是否改變了這個侷限？</li>
+              <li><strong>講者隱含的論點：</strong>Plugin 的設計目的是「把公司已知的安全要求自動化」，不是「發現未知漏洞」。這是一個謙遜但誠實的定位——把 AI 放在對的位置。</li>
+              <li><strong>職涯啟發：</strong>在現有工作流中，哪些安全檢查是「已知規則的機械性執行」？哪些需要「人類的判斷力」？明確這個邊界，是 AI 輔助安全工程的起點。</li>
+              <li><strong>反向思考：</strong>如果 Claude Code 的安全 Plugin 系統被廣泛採用，攻擊者是否會反過來研究常見 Plugin 規則，設計能繞過這些規則的攻擊方式？</li>
+            </ul>
+          </details>
+        </div>
+
+        <div class="discuss">
+          <p>Q6：從草圖到 Looker Dashboard，整個演示在 28 分鐘內完成，而且大部分由 AI 執行。這個未來裡，軟體工程師的核心競爭力是什麼？「寫程式」的技能是否正在被「定義問題」的能力取代？</p>
+          <details>
+            <summary>查看建議思考方向</summary>
+            <ul>
+              <li><strong>歷史對照：</strong>計算機工業史上每次技術抽象層級提升（組合語言→高級語言→框架→無代碼）都引發了「程式員要消失了嗎」的討論，但程式員人數每次都增加了。這次有什麼不同？</li>
+              <li><strong>講者隱含的論點：</strong>Emanuele 始終強調人類在每個節點的「確認」和「決策」：確認 Planning Mode 的規格、審查 PR、批准 Security 通過、升級到 Production。AI 執行，人類決策。</li>
+              <li><strong>職涯啟發：</strong>如果「寫程式」的門檻降低，「產品判斷力」的稀缺性就會升高。未來工程師最有價值的能力，可能是知道「什麼該做」，而不是「怎麼做」。</li>
+              <li><strong>反向思考：</strong>Emanuele 的 Demo 非常順暢，但他本身是有深厚技術背景的 Developer Advocate。如果一個真正沒有技術背景的 PM 來嘗試，結果會一樣嗎？技術背景在 AI 時代的作用是什麼？</li>
+            </ul>
+          </details>
+        </div>
+
+        <hr class="section-rule">
+        <h3>名詞速查表</h3>
+        <div class="ledger">
+          <div class="ledger-row">
+            <div class="l-label">ADC</div>
+            <div class="l-desc">Application Default Credentials，Google Cloud 的免密鑰認證機制，根據執行環境自動識別身份</div>
+            <div class="l-num">Auth</div>
+          </div>
+          <div class="ledger-row">
+            <div class="l-label">MCP Server</div>
+            <div class="l-desc">Model Context Protocol Server，為 AI 提供即時外部知識（文件、工具、數據）的標準化介面</div>
+            <div class="l-num">Protocol</div>
+          </div>
+          <div class="ledger-row">
+            <div class="l-label">Provisioned Throughput</div>
+            <div class="l-desc">預留算力，為生產應用提供有 SLA 保障的穩定 API 容量，不受其他用戶影響</div>
+            <div class="l-num">Infra</div>
+          </div>
+          <div class="ledger-row">
+            <div class="l-label">Sub-agents</div>
+            <div class="l-desc">Claude Code 的平行子代理人，多個 AI 同時執行獨立任務，模擬團隊協作</div>
+            <div class="l-num">Agent</div>
+          </div>
+          <div class="ledger-row">
+            <div class="l-label">Cloud Deploy</div>
+            <div class="l-desc">Google Cloud 的持續部署服務，管理從 Dev → Staging → Production 的版本升級流程</div>
+            <div class="l-num">CD</div>
+          </div>
+          <div class="ledger-row">
+            <div class="l-label">Looker</div>
+            <div class="l-desc">Google Cloud 的企業 BI（商業智能）平台，可連接 BigQuery 建立互動式數據儀表板</div>
+            <div class="l-num">BI</div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+  </div>
+</article>
+
+<footer class="colophon">
+  <div class="colophon-grid">
+    <div>
+      <h6>Conference</h6>
+      <p>Code with Claude London 2026</p>
+      <p>Anthropic Developer Conference</p>
+      <p>May 19–20, 2026 · London</p>
+    </div>
+    <div>
+      <h6>This Session</h6>
+      <p>Session 19 · Day 2</p>
+      <p>Emanuele Nardini</p>
+      <p>Developer Advocate, Google Cloud</p>
+      <p>Building with Claude on Google Cloud</p>
+    </div>
+    <div>
+      <h6>Learning Pipeline</h6>
+      <p>Google Docs Transcript</p>
+      <p>→ Structured Notes</p>
+      <p>→ Interactive HTML</p>
+    </div>
+  </div>
+  <hr class="colophon-rule">
+  <div class="colophon-foot">
+    © The Claude Dispatch · Set in Fraunces, Newsreader &amp; JetBrains Mono · 12 primers · 3 stories · 6 guided questions
+  </div>
+</footer>
+
+<button id="back-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<script>
+// Progress bar
+const pb = document.getElementById('progress-bar');
+window.addEventListener('scroll', () => {
+  const h = document.documentElement;
+  const pct = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100;
+  pb.style.width = pct + '%';
+});
+
+// Cursor follower
+const cursor = document.getElementById('cursor');
+const isTouchDevice = 'ontouchstart' in window;
+if (isTouchDevice) {
+  cursor.style.display = 'none';
+} else {
+  document.addEventListener('mousemove', e => {
+    cursor.style.left = e.clientX + 'px';
+    cursor.style.top = e.clientY + 'px';
+  });
+  document.querySelectorAll('a, button, .tab-btn, .card, .hat-step, .cloud-node, .ledger-row, .term').forEach(el => {
+    el.addEventListener('mouseenter', () => cursor.classList.add('hovered'));
+    el.addEventListener('mouseleave', () => cursor.classList.remove('hovered'));
+  });
+}
+
+// Tab switching with sliding indicator
+const tabs = document.querySelectorAll('.tab-btn');
+const indicator = document.querySelector('.tab-indicator');
+const contents = document.querySelectorAll('.tab-content');
+
+function setIndicator(tab) {
+  const rect = tab.getBoundingClientRect();
+  const navRect = tab.parentElement.getBoundingClientRect();
+  indicator.style.left = (rect.left - navRect.left) + 'px';
+  indicator.style.width = rect.width + 'px';
+}
+
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    contents.forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    setIndicator(tab);
+    // re-trigger reveals in new tab
+    document.querySelectorAll('#tab-' + tab.dataset.tab + ' .chapter').forEach(c => {
+      revealObs.observe(c);
+    });
+    // re-trigger bars in new tab
+    document.querySelectorAll('#tab-' + tab.dataset.tab + ' .bar-fill, #tab-' + tab.dataset.tab + ' .freshness-fill').forEach(b => {
+      barObs.observe(b);
+    });
+  });
+});
+
+// Init indicator
+setTimeout(() => setIndicator(document.querySelector('.tab-btn.active')), 100);
+window.addEventListener('resize', () => setIndicator(document.querySelector('.tab-btn.active')));
+
+// Scroll reveal
+const revealObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('revealed'); }});
+}, { threshold: 0.08 });
+document.querySelectorAll('.chapter').forEach(c => revealObs.observe(c));
+
+// Bar animation
+const barObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const el = e.target;
+      const w = el.dataset.w;
+      if (w) {
+        setTimeout(() => { el.style.width = w + '%'; }, 200);
+      }
+      barObs.unobserve(el);
+    }
+  });
+}, { threshold: 0.3 });
+document.querySelectorAll('.bar-fill, .freshness-fill').forEach(b => barObs.observe(b));
+</script>
+<style>#home-btn{position:fixed;bottom:32px;left:32px;width:44px;height:44px;border-radius:50%;background:var(--cardinal,#8c1515);color:var(--paper,#efe8d6);display:flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:3px 3px 0 var(--ink,#1a1410);z-index:901;font-size:20px;transition:transform .2s;}#home-btn:hover{transform:translateY(-4px);}#home-btn::after{content:'';position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;color:var(--ink-faint,#7a6651);opacity:0;transition:opacity .2s;}#home-btn:hover::after{content:'HOME';opacity:1;}</style>
+<a id='home-btn' href='./index.html' title='Back to Index'>&#8962;</a></body>
+</html>

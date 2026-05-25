@@ -1,0 +1,901 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Claude Dispatch — №21 Designing with Claude: From Prompt to Production</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #efe8d6;
+  --paper-deep: #e4d9be;
+  --paper-edge: #d6c89f;
+  --ink: #1a1410;
+  --ink-soft: #4a3a2b;
+  --ink-faint: #7a6651;
+  --cardinal: #8c1515;
+  --cardinal-dk: #5e0e0e;
+  --cardinal-soft: #b34646;
+  --gold: #b48729;
+  --gold-soft: #d8b261;
+  --gold-bg: #f7eccd;
+  --moss: #586a3f;
+  --moss-bg: #e6e6c9;
+  --rule: rgba(26,20,16,0.14);
+  --rule-soft: rgba(26,20,16,0.07);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Newsreader', 'Noto Serif TC', Georgia, serif;
+  font-size: 18px;
+  line-height: 1.75;
+  cursor: none;
+}
+
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 999;
+  background-image:
+    radial-gradient(rgba(26,20,16,0.04) 1px, transparent 1px),
+    radial-gradient(rgba(26,20,16,0.025) 1px, transparent 1px);
+  background-size: 3px 3px, 7px 7px;
+  background-position: 0 0, 1px 1px;
+  opacity: .55; mix-blend-mode: multiply;
+}
+
+#progress-bar { position: fixed; top: 0; left: 0; height: 3px; width: 0%; background: linear-gradient(90deg, var(--cardinal), var(--gold)); z-index: 1000; transition: width 0.1s linear; }
+#cursor { position: fixed; width: 20px; height: 20px; border: 2px solid var(--cardinal); border-radius: 50%; pointer-events: none; z-index: 9999; transform: translate(-50%, -50%); transition: width 0.2s, height 0.2s; mix-blend-mode: multiply; }
+#cursor.hovered { width: 76px; height: 76px; }
+.container { max-width: 1080px; margin: 0 auto; padding: 0 32px; }
+
+.masthead { background: var(--ink); color: var(--paper); padding: 10px 32px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.15em; }
+.masthead span { color: var(--gold-soft); }
+
+.hero { padding: 56px 0 40px; border-bottom: 2px solid var(--ink); }
+.hero-grid { display: grid; grid-template-columns: 160px 1fr; gap: 40px; align-items: start; }
+.issue-stamp { font-family: 'Fraunces', serif; font-size: 72px; font-weight: 800; color: var(--cardinal); line-height: 1; white-space: nowrap; transform: rotate(-4deg); display: inline-block; text-shadow: 2px 2px 0 var(--paper), 4px 4px 0 var(--cardinal-dk); padding: 8px 0; }
+.issue-stamp small { display: block; font-size: 13px; letter-spacing: 0.12em; color: var(--ink-faint); font-family: 'JetBrains Mono', monospace; margin-top: 4px; }
+h1 { font-family: 'Fraunces', serif; font-size: clamp(34px, 4.6vw, 58px); font-weight: 700; line-height: 1.15; }
+h1 em { color: var(--cardinal); font-style: italic; }
+.deck { font-size: 20px; color: var(--ink-soft); margin-top: 16px; line-height: 1.5; max-width: 680px; }
+.byline { margin-top: 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; color: var(--ink-faint); border-top: 1px solid var(--rule); padding-top: 12px; }
+.byline strong { color: var(--cardinal); }
+
+.stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 2px solid var(--ink); background: var(--paper-deep); }
+.stat-item { padding: 24px 20px; border-right: 1px solid var(--rule); position: relative; cursor: default; }
+.stat-item:last-child { border-right: none; }
+.stat-num { font-family: 'Fraunces', serif; font-size: 38px; font-weight: 700; color: var(--cardinal); line-height: 1; }
+.stat-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: var(--ink-faint); margin-top: 6px; text-transform: uppercase; }
+.stat-tooltip { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(4px); background: var(--ink); color: var(--paper); padding: 8px 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 100; border-radius: 2px; }
+.stat-tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: var(--ink); }
+.stat-item:hover .stat-tooltip { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.nav-wrap { position: sticky; top: 0; z-index: 50; background: var(--paper-deep); border-bottom: 2px solid var(--ink); }
+.nav-inner { display: flex; position: relative; }
+.tab-btn { padding: 16px 28px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); background: none; border: none; cursor: pointer; transition: color 0.2s; white-space: nowrap; }
+.tab-btn:hover { color: var(--ink); }
+.tab-btn.active { color: var(--cardinal); font-weight: 700; }
+.tab-indicator { position: absolute; bottom: 0; height: 3px; background: linear-gradient(90deg, var(--cardinal), var(--gold)); transition: left 0.35s cubic-bezier(.4,0,.2,1), width 0.35s cubic-bezier(.4,0,.2,1); }
+
+article { padding: 0 0 80px; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.chapter { padding: 56px 0 40px; border-bottom: 1px solid var(--rule); position: relative; overflow: hidden; opacity: 0; transform: translateY(24px); transition: opacity 0.6s, transform 0.6s; }
+.chapter.revealed { opacity: 1; transform: none; }
+.roman { position: absolute; top: 20px; right: 20px; font-family: 'Fraunces', serif; font-size: 220px; font-weight: 800; font-style: italic; color: rgba(26,20,16,0.045); line-height: 1; user-select: none; pointer-events: none; }
+
+h2 { font-family: 'Fraunces', serif; font-size: 44px; font-weight: 700; line-height: 1.2; margin-bottom: 24px; padding-left: 24px; border-left: 32px solid var(--cardinal); }
+h3 { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; color: var(--ink); margin: 28px 0 12px; }
+h4 { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 600; color: var(--ink); margin: 20px 0 8px; }
+h5 { font-family: 'Fraunces', serif; font-size: 18px; font-style: italic; color: var(--ink); margin-bottom: 8px; }
+p { max-width: 760px; margin-bottom: 16px; color: var(--ink-soft); }
+.lede { font-size: 20px; color: var(--ink); font-weight: 500; margin-bottom: 24px; max-width: 760px; }
+
+aside.primer { background: var(--gold-bg); border: 1px solid var(--paper-edge); border-left: 4px solid var(--gold); padding: 24px 28px; margin: 32px 0; max-width: 820px; }
+.primer-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); display: block; margin-bottom: 10px; }
+aside.primer h5 { color: var(--ink); font-size: 17px; margin-bottom: 10px; }
+aside.primer p { font-size: 15px; margin-bottom: 10px; }
+aside.primer ul { padding-left: 20px; font-size: 15px; color: var(--ink-soft); }
+aside.primer li { margin-bottom: 6px; }
+
+.story { background: var(--paper-deep); border: 1px solid var(--paper-edge); border-top: 4px solid var(--cardinal); padding: 28px 32px; margin: 32px 0; max-width: 820px; }
+.story-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cardinal-soft); display: block; margin-bottom: 10px; }
+.story h4 { font-style: italic; color: var(--cardinal); margin-bottom: 12px; }
+.story p { font-size: 16px; }
+.story blockquote { border-left: 3px solid var(--cardinal-soft); padding-left: 20px; margin: 16px 0; color: var(--cardinal-dk); font-style: italic; font-size: 17px; }
+
+.pullquote { border-top: 3px solid var(--ink); border-bottom: 1px solid var(--rule); padding: 28px 0; margin: 36px 0; max-width: 820px; position: relative; }
+.pullquote::before { content: '\201C'; font-family: 'Fraunces', serif; font-size: 120px; color: rgba(140,21,21,0.1); position: absolute; top: -20px; left: -10px; line-height: 1; pointer-events: none; transition: transform 0.4s, opacity 0.4s; }
+.pullquote:hover::before { transform: rotate(-6deg); opacity: 0.2; }
+.pullquote p { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 400; color: var(--ink); line-height: 1.4; max-width: 100%; }
+.pullquote cite { display: block; margin-top: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); letter-spacing: 0.08em; }
+.zh { display: block; margin-top: 10px; font-size: 14px; color: var(--ink-faint); border-top: 1px dashed var(--rule); padding-top: 10px; }
+
+.term { background: rgba(180,135,41,0.18); border-bottom: 1px dashed var(--cardinal); cursor: help; position: relative; padding: 0 2px; }
+.term::after { content: attr(data-def); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--paper); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 6px 10px; opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 200; max-width: 260px; white-space: normal; border-radius: 2px; }
+.term:hover::after { opacity: 1; }
+
+.discuss { background: var(--moss-bg); border: 1px solid var(--moss); border-left: 4px solid var(--moss); padding: 24px 28px; margin: 24px 0; max-width: 820px; }
+.discuss > p { font-weight: 600; color: var(--ink); margin-bottom: 12px; font-size: 17px; }
+.discuss details summary { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; color: var(--moss); cursor: pointer; text-transform: uppercase; user-select: none; }
+.discuss details ul { margin-top: 12px; padding-left: 20px; color: var(--ink-soft); font-size: 15px; }
+.discuss details li { margin-bottom: 8px; }
+
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 28px 0; max-width: 820px; }
+.card { background: var(--paper-deep); border: 1px solid var(--paper-edge); padding: 24px; transition: transform 0.2s, box-shadow 0.2s; cursor: default; }
+.card:hover { transform: translateY(-4px); box-shadow: 4px 4px 0 var(--ink); }
+.card h4 { color: var(--cardinal); margin-bottom: 10px; }
+.card p { font-size: 15px; }
+
+.ledger { margin: 28px 0; max-width: 820px; }
+.ledger-row { display: grid; grid-template-columns: 220px 1fr 100px; border-bottom: 1px solid var(--rule); padding: 14px 0; align-items: center; transition: all 0.2s; cursor: default; position: relative; padding-left: 0; }
+.ledger-row::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--cardinal); transition: width 0.3s ease; }
+.ledger-row:hover::before { width: 4px; }
+.ledger-row:hover { padding-left: 12px; }
+.ledger-row:hover .l-num { color: var(--cardinal); }
+.l-label { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-faint); padding-left: 8px; }
+.l-desc { font-size: 15px; color: var(--ink-soft); }
+.l-num { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 700; color: var(--ink-faint); text-align: right; transition: color 0.2s; }
+
+.stack { margin: 28px 0; max-width: 820px; }
+.stack-item { display: grid; grid-template-columns: 48px 1fr; border-bottom: 1px solid var(--rule); padding: 16px 0; align-items: start; transition: padding-left 0.2s; cursor: default; position: relative; }
+.stack-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--cardinal); transition: width 0.3s; }
+.stack-item:hover::before { width: 3px; }
+.stack-item:hover { padding-left: 14px; }
+.stack-item:hover .s-roman { color: var(--cardinal); }
+.s-roman { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 700; font-style: italic; color: rgba(26,20,16,0.18); transition: color 0.2s; line-height: 1.3; }
+.s-body h4 { margin: 0 0 6px; }
+.s-body p { font-size: 15px; margin: 0; }
+
+.bar-chart { margin: 28px 0; max-width: 820px; }
+.bar-row { display: grid; grid-template-columns: 180px 1fr 80px; align-items: center; margin-bottom: 14px; gap: 12px; }
+.bar-label { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-soft); }
+.bar-track { height: 22px; background: var(--paper-edge); overflow: visible; position: relative; }
+.bar-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--cardinal), var(--cardinal-soft)); transition: width 1.5s ease; position: relative; }
+.bar-fill::after { content: attr(data-text); position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%); font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); white-space: nowrap; }
+.bar-val { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--ink-faint); text-align: right; }
+
+.section-rule { border: none; border-top: 1px solid var(--rule); margin: 36px 0; max-width: 820px; }
+
+/* CYCLE VISUAL */
+.cycle-vis {
+  display: flex; align-items: center; gap: 0; max-width: 820px; margin: 32px 0;
+}
+.cycle-node {
+  flex: 1; padding: 20px 16px; text-align: center; background: var(--paper-deep);
+  border: 1px solid var(--paper-edge); position: relative; cursor: default;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.cycle-node:hover { transform: translateY(-3px); box-shadow: 3px 3px 0 var(--cardinal); }
+.cycle-node:not(:last-child)::after { content: '→'; position: absolute; right: -14px; top: 50%; transform: translateY(-50%); font-size: 18px; color: var(--cardinal); z-index: 2; font-weight: 700; }
+.cycle-icon { font-size: 28px; margin-bottom: 8px; }
+.cycle-title { font-family: 'Fraunces', serif; font-size: 15px; font-weight: 700; color: var(--ink); }
+.cycle-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-faint); margin-top: 4px; }
+
+/* TEAM GROWTH STAGES */
+.team-stages { display: flex; gap: 16px; max-width: 820px; margin: 28px 0; align-items: flex-end; }
+.team-stage { flex: 1; background: var(--paper-deep); border: 1px solid var(--paper-edge); padding: 20px 16px; text-align: center; cursor: default; transition: transform 0.2s; }
+.team-stage:hover { transform: translateY(-3px); }
+.team-num { font-family: 'Fraunces', serif; font-size: 52px; font-weight: 800; line-height: 1; }
+.team-num.s1 { color: var(--ink-faint); font-size: 36px; }
+.team-num.s2 { color: var(--cardinal); }
+.team-num.s3 { color: var(--gold); font-size: 42px; }
+.team-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-faint); margin-top: 8px; text-transform: uppercase; letter-spacing: 0.1em; }
+.team-desc { font-size: 13px; color: var(--ink-soft); margin-top: 8px; }
+
+/* ACTION CARD */
+.action-card { background: var(--ink); color: var(--paper); padding: 28px 32px; margin: 20px 0; max-width: 820px; border-left: 4px solid var(--gold); }
+.action-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--gold-soft); letter-spacing: 0.12em; text-transform: uppercase; display: block; margin-bottom: 8px; }
+.action-card h4 { color: var(--gold); font-size: 18px; margin-bottom: 10px; }
+.action-card p { color: rgba(239,232,214,0.8); font-size: 15px; max-width: none; margin-bottom: 0; }
+
+.colophon { background: var(--ink); color: var(--paper); padding: 56px 32px 40px; border-top: 4px solid var(--cardinal); }
+.colophon-grid { max-width: 1080px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; }
+.colophon h6 { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.colophon p { font-size: 13px; color: rgba(239,232,214,0.7); max-width: none; margin-bottom: 8px; }
+.colophon-rule { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 32px 0; }
+.colophon-foot { max-width: 1080px; margin: 0 auto; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: rgba(239,232,214,0.4); letter-spacing: 0.06em; }
+
+#back-top { position: fixed; bottom: 32px; right: 32px; width: 48px; height: 48px; background: var(--cardinal); color: var(--paper); border: none; border-radius: 50%; font-size: 20px; cursor: pointer; z-index: 200; box-shadow: 3px 3px 0 var(--ink); transition: transform 0.2s, box-shadow 0.2s; }
+#back-top:hover { transform: translateY(-4px); box-shadow: 3px 7px 0 var(--ink); }
+
+@media (max-width: 900px) {
+  .hero-grid { grid-template-columns: 1fr; }
+  .stat-strip { grid-template-columns: 1fr 1fr; }
+  .duo { grid-template-columns: 1fr; }
+  .colophon-grid { grid-template-columns: 1fr; }
+  .cycle-vis { flex-wrap: wrap; }
+  .team-stages { flex-wrap: wrap; }
+  .container { padding: 0 22px; }
+}
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div id="cursor"></div>
+
+<header class="masthead">
+  THE CLAUDE DISPATCH &nbsp;·&nbsp; <span>CODE WITH CLAUDE LONDON 2026</span> &nbsp;·&nbsp; MAY 20, 2026 &nbsp;·&nbsp; ANTHROPIC DEVELOPER CONFERENCE
+</header>
+
+<section class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div>
+        <div class="issue-stamp">№21<small>DAY 2</small></div>
+      </div>
+      <div>
+        <h1>從提示詞到<em>生產環境</em></h1>
+        <p class="deck">3 人、10 週、50-100 次迭代——Anthropic Labs 的「下注工廠」如何用原型取代 PRD、讓工程師以外的角色跟上 Claude Code 帶來的速度革命。</p>
+        <div class="byline">
+          <strong>DAN CARRY</strong> &nbsp;·&nbsp; Product Manager, Anthropic Labs &nbsp;·&nbsp;
+          Session 21 &nbsp;·&nbsp; <span>Claude Design · Bet Factory · Ship-Observe-Learn</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="stat-strip">
+  <div class="stat-item">
+    <div class="stat-num">10wk</div>
+    <div class="stat-label">想法到發布</div>
+    <div class="stat-tooltip">Claude Design 從最初原型到正式 Research Preview 的開發週期</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">3</div>
+    <div class="stat-label">人核心團隊</div>
+    <div class="stat-tooltip">大部分開發期間僅 3 人；「1 人找火花 → 3 人開發 → 5 人發布」</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">62</div>
+    <div class="stat-label">發布後改進</div>
+    <div class="stat-tooltip">週五發布，週一前已根據用戶反饋交付 62 項改進</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">50-100</div>
+    <div class="stat-label">次迭代循環</div>
+    <div class="stat-tooltip">初期 10 週內執行 Ship-Observe-Learn 循環的次數</div>
+  </div>
+</div>
+
+<nav class="nav-wrap">
+  <div class="container">
+    <div class="nav-inner">
+      <button class="tab-btn active" data-tab="0">I · 總覽</button>
+      <button class="tab-btn" data-tab="1">II · 下注工廠</button>
+      <button class="tab-btn" data-tab="2">III · 原型取代 PRD</button>
+      <button class="tab-btn" data-tab="3">IV · 反直覺洞見</button>
+      <button class="tab-btn" data-tab="4">V · 思考題</button>
+      <div class="tab-indicator"></div>
+    </div>
+  </div>
+</nav>
+
+<article>
+  <div class="container">
+
+    <!-- TAB I -->
+    <div class="tab-content active" id="tab-0">
+
+      <section class="chapter">
+        <span class="roman">I</span>
+        <h2>時間線被壓縮了</h2>
+        <p class="lede">Claude Code 讓工程師把「幾週的工作」壓縮到「幾個小時」。當工程瓶頸消失後，新的瓶頸出現了：PM 和設計師跟不上。Dan Carry 講述的，正是 Anthropic Labs 如何解決這個問題的故事。</p>
+        <p>Dan 在演講中做了一個即時調查：「你上一次交付的新功能，從有想法到出現在用戶面前，花了幾週？」台下的答案從 1 週到 10 週不等。然後他問：「一年前，你的答案是什麼？」答案普遍大幅延長。</p>
+        <p>這個壓縮是真實的。而壓縮帶來的新問題是：當工程師能在數小時內把功能推到用戶面前時，PM 和設計師的工作流卻仍然需要幾天甚至幾週——用來寫 PRD、開規劃會議、製作線框圖。他們成了新的瓶頸。</p>
+
+        <div class="pullquote">
+          <p><strong>"Once Claude Code let engineering take off, the bottleneck shifted — from building the feature to figuring out the right thing to build."</strong>
+          <span class="zh">「一旦 Claude Code 讓工程起飛，瓶頸就轉移了——從『建置功能』轉移到了『搞清楚到底該建置什麼正確的東西』。」</span></p>
+          <cite>— Dan Carry, Anthropic Labs</cite>
+        </div>
+
+        <h3>開發速度壓縮對比</h3>
+        <div class="bar-chart">
+          <div class="bar-row">
+            <div class="bar-label">Before（一年前）</div>
+            <div class="bar-track"><div class="bar-fill" data-w="95" data-text="月 → 季"></div></div>
+            <div class="bar-val">1-3 mo</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">After Claude Code</div>
+            <div class="bar-track"><div class="bar-fill" data-w="20" data-text="小時 → 一天" style="background: linear-gradient(90deg, var(--moss), #7aaa4f);"></div></div>
+            <div class="bar-val">1 day</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">Claude Design 目標</div>
+            <div class="bar-track"><div class="bar-fill" data-w="10" data-text="分鐘 → 小時" style="background: linear-gradient(90deg, var(--gold), var(--gold-soft));"></div></div>
+            <div class="bar-val">Minutes</div>
+          </div>
+        </div>
+
+        <aside class="primer">
+          <span class="primer-tag">給初學者 · 一句話搞懂「Claude Design 是什麼」</span>
+          <h5>Claude Design：讓非工程師也能快速視覺化想法的工具</h5>
+          <p>傳統的產品設計流程：PM 寫需求文件 → 設計師畫線框圖 → 開會討論 → 再次修改 → 工程師開始開發。這個流程在工程速度飆升後變得尷尬：工程師在等 PM 和設計師。</p>
+          <ul>
+            <li><strong>Claude Design</strong>：讓你與 Claude 協作，直接建立設計原型、簡報、單頁企劃書</li>
+            <li><strong>核心功能</strong>：原型生成、多人即時協作、一鍵交接給 Claude Code 開發</li>
+            <li><strong>輸出格式</strong>：標準 HTML/CSS/JS（完全開放，可以在任何工具中繼續工作）</li>
+          </ul>
+          <p>可以把它理解為「PM 和設計師的 Claude Code」——讓非工程師也能在幾分鐘內把想法變成可互動的東西，而不是等待工程師。</p>
+        </aside>
+      </section>
+
+      <section class="chapter">
+        <span class="roman">I</span>
+        <h2>六大核心洞見</h2>
+        <div class="stack">
+          <div class="stack-item">
+            <span class="s-roman">I</span>
+            <div class="s-body">
+              <h4>文件是不精確的，原型是具體的</h4>
+              <p>兩個人看同一份 PRD，腦子裡想的是完全不同的產品。而原型消除了這種解讀分歧——你可以親手觸摸它、感受它、立刻知道它對不對。</p>
+            </div>
+          </div>
+          <div class="stack-item">
+            <span class="s-roman">II</span>
+            <div class="s-body">
+              <h4>為自己解決痛點 = 最好的產品設計</h4>
+              <p>Multiplayer 和 Hand-off 功能，最初都是 Omni 自己的開發者解決自己工作流摩擦時做出來的。用戶第一天要的功能，正好就是團隊上週為自己做的那個。</p>
+            </div>
+          </div>
+          <div class="stack-item">
+            <span class="s-roman">III</span>
+            <div class="s-body">
+              <h4>協作成本是速度的隱形殺手</h4>
+              <p>3 人小團隊的最大優勢不是人才密度，而是協作成本趨近於零。「討論」就是轉身跟旁邊的人說話，不需要排時程、不需要對齊會議。</p>
+            </div>
+          </div>
+          <div class="stack-item">
+            <span class="s-roman">IV</span>
+            <div class="s-body">
+              <h4>為「差一點就能行」的東西做原型</h4>
+              <p>不要為現在已經行得通的東西花時間，而是為那個差一點就能行的東西做原型。因為下一個模型發布，就會把那個「差一點」填滿——Opus 4.7 解決了大量 Claude Design 早期無法解決的問題。</p>
+            </div>
+          </div>
+          <div class="stack-item">
+            <span class="s-roman">V</span>
+            <div class="s-body">
+              <h4>迭代的速度決定錯誤的代價</h4>
+              <p>進階控制項功能走錯方向，但從發現到拔除只花了一週。「迭代循環的小」才是降低錯誤代價的關鍵，而非「不犯錯」。</p>
+            </div>
+          </div>
+          <div class="stack-item">
+            <span class="s-roman">VI</span>
+            <div class="s-body">
+              <h4>工具的目標是為所有人提升工藝水平</h4>
+              <p>進階用戶愛的功能，一般用戶恨。真正好的工具應該讓所有人都能做出更好的作品，而不只是給少數人更多控制桿。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- TAB II: 下注工廠 -->
+    <div class="tab-content" id="tab-1">
+
+      <section class="chapter">
+        <span class="roman">II</span>
+        <h2>下注工廠：前沿實驗室裡的實驗室</h2>
+        <p class="lede">Anthropic Labs 的定位是「前沿實驗室裡的實驗室」。它的核心機制是「下注工廠」：小團隊、快速實驗、加倍投入或果斷放棄。Claude Code、Claude Design、MCP、Skills，都從這裡誕生。</p>
+
+        <div class="pullquote">
+          <p><strong>"We ship, observe, learn. Ship, observe, learn. We just run that loop over and over again."</strong>
+          <span class="zh">「我們交付、觀察、學習。交付、觀察、學習。就是一遍又一遍地跑這個循環。」</span></p>
+          <cite>— Dan Carry, Anthropic Labs</cite>
+        </div>
+
+        <h3>Ship-Observe-Learn 循環</h3>
+        <div class="cycle-vis">
+          <div class="cycle-node">
+            <div class="cycle-icon">🚀</div>
+            <div class="cycle-title">Ship</div>
+            <div class="cycle-sub">每天交付</div>
+          </div>
+          <div class="cycle-node">
+            <div class="cycle-icon">👁️</div>
+            <div class="cycle-title">Observe</div>
+            <div class="cycle-sub">看用戶怎麼用</div>
+          </div>
+          <div class="cycle-node">
+            <div class="cycle-icon">🧠</div>
+            <div class="cycle-title">Learn</div>
+            <div class="cycle-sub">從行為中學習</div>
+          </div>
+          <div class="cycle-node" style="border-color: var(--cardinal);">
+            <div class="cycle-icon">🔁</div>
+            <div class="cycle-title">Repeat</div>
+            <div class="cycle-sub">50-100次 / 10週</div>
+          </div>
+        </div>
+
+        <aside class="primer">
+          <span class="primer-tag">給初學者 · 一句話搞懂「精實創業」</span>
+          <h5>精實創業（Lean Startup）：讓市場告訴你對不對</h5>
+          <p>傳統創業方式：花 2 年開發完整產品 → 上市 → 發現市場不要 → 失敗。精實創業的核心是把這個失敗「提前」——做最小可行的版本、立刻給用戶用、快速知道對不對、調整再迭代。</p>
+          <ul>
+            <li><strong>Build-Measure-Learn</strong>（打造-衡量-學習）：精實創業的核心循環</li>
+            <li><strong>Labs 的版本</strong>：Ship-Observe-Learn，強調「行動速度」</li>
+            <li><strong>最大差異</strong>：Labs 把這個循環跑得比任何人都快，10 週 50-100 次</li>
+          </ul>
+          <p>Dan 說 Labs 不預測未來，而是「直接去做，讓現實告訴你真相」。這種態度在 AI 快速演進的時代尤其重要——你預測的「10 年後」可能 18 個月後就到了。</p>
+        </aside>
+
+        <h3>兩個最強問句</h3>
+        <div class="duo">
+          <div class="card">
+            <h4>問用戶：「請盡情向我抱怨！」</h4>
+            <p>Dan 的用戶訪談開場白。不問「你覺得這個功能怎麼樣」，而是直接邀請批評——因為抱怨蘊含著產品改進的機會，滿意的人不會告訴你什麼需要改。</p>
+          </div>
+          <div class="card">
+            <h4>問研究員：「最近被什麼驚艷到了？」</h4>
+            <p>和 Anthropic 研究員交流的開場白。讓研究員主動說出他們對模型能力的新發現——這往往就是新下注機會的源頭，用戶痛點與模型新能力的交叉點。</p>
+          </div>
+        </div>
+
+        <div class="story">
+          <span class="story-tag">Labs 的下注清單</span>
+          <h4>從 Labs 誕生的產品</h4>
+          <p>Anthropic Labs 的下注工廠機制已經生產出了多個改變整個行業的產品和協議。每一個都始於一個小團隊、一個週末的實驗。</p>
+          <div class="ledger" style="margin-top: 12px;">
+            <div class="ledger-row">
+              <div class="l-label">Claude Code</div>
+              <div class="l-desc">AI 程式開發代理人，讓工程師的開發速度從週壓縮到小時</div>
+              <div class="l-num">✓</div>
+            </div>
+            <div class="ledger-row">
+              <div class="l-label">Claude Design</div>
+              <div class="l-desc">設計協作工具，讓 PM 和設計師跟上工程速度；本次演講主題</div>
+              <div class="l-num">✓</div>
+            </div>
+            <div class="ledger-row">
+              <div class="l-label">MCP</div>
+              <div class="l-desc">Model Context Protocol，AI 工具整合的開放標準協議</div>
+              <div class="l-num">✓</div>
+            </div>
+            <div class="ledger-row">
+              <div class="l-label">Skills</div>
+              <div class="l-desc">Claude Code 的可複用技能框架，讓組織知識成為 AI 資產</div>
+              <div class="l-num">✓</div>
+            </div>
+          </div>
+        </div>
+
+        <h3>團隊規模的三個階段</h3>
+        <div class="team-stages">
+          <div class="team-stage">
+            <div class="team-num s1">1</div>
+            <div class="team-label">階段一：探索火花</div>
+            <div class="team-desc">1 人 + Claude。找到「魔法時刻」——那個有潛力的閃光點。大多數想法在這個階段就放棄了。</div>
+          </div>
+          <div class="team-stage" style="border-top: 3px solid var(--cardinal);">
+            <div class="team-num s2">3</div>
+            <div class="team-label">階段二：核心開發</div>
+            <div class="team-desc">確認火花後「擴大 300%」。3 人團隊維持最低協作成本，角色邊界完全溶解。</div>
+          </div>
+          <div class="team-stage">
+            <div class="team-num s3">5</div>
+            <div class="team-label">階段三：發布前</div>
+            <div class="team-desc">只有確定要正式發布，才可能擴至 5 人。保持精簡是競爭力。</div>
+          </div>
+        </div>
+
+        <aside class="primer">
+          <span class="primer-tag">給初學者 · 一句話搞懂「協作成本」</span>
+          <h5>為什麼小團隊反而跑得更快？</h5>
+          <p>想像你要做一個決定。1 人的話，你立刻決定；10 人的話，你需要開一個會、做一個簡報、等所有人對齊、處理各種意見。</p>
+          <ul>
+            <li><strong>協作成本</strong>：溝通、對齊、等待、重複解釋的時間總和</li>
+            <li><strong>10 人團隊</strong>：可能有 45 條溝通路徑（n×(n-1)/2）</li>
+            <li><strong>3 人團隊</strong>：只有 3 條溝通路徑——彼此都瞭解對方在做什麼</li>
+          </ul>
+          <p>Dan 說 3 人團隊裡的「討論」，就是轉身跟旁邊的人說話。這種即時協調是大團隊無法複製的優勢。</p>
+        </aside>
+      </section>
+
+    </div>
+
+    <!-- TAB III: 原型取代 PRD -->
+    <div class="tab-content" id="tab-2">
+
+      <section class="chapter">
+        <span class="roman">III</span>
+        <h2>廢除 PRD：原型就是唯一語言</h2>
+        <p class="lede">Dan Carry 寫了 20 年 PRD。Claude Design 上線後，他停止了。不是因為 PRD 不好，而是原型更好——它是具體的、可互動的、幾分鐘內可迭代的。</p>
+
+        <div class="pullquote">
+          <p><strong>"Docs are imprecise. Two people can read the same doc and imagine two completely different products. Prototypes are concrete and tactile."</strong>
+          <span class="zh">「文件是不精確的。兩個人看著同一份文件，卻各自想像出完全不同的產品。原型則是具體且直觀可感受的。」</span></p>
+          <cite>— Dan Carry, Anthropic Labs</cite>
+        </div>
+
+        <aside class="primer">
+          <span class="primer-tag">給初學者 · 一句話搞懂「PRD（Product Requirements Document）」</span>
+          <h5>PRD 是什麼？為什麼它有問題？</h5>
+          <p>PRD（產品需求文件）是 PM 用文字描述產品功能的文件。在沒有 AI 工具的年代，它是對齊整個團隊的唯一方式。</p>
+          <ul>
+            <li><strong>PRD 的問題一：認知偏差</strong>：「用戶可以點擊提交按鈕」——每個人想像的按鈕位置、顏色、邏輯都不一樣</li>
+            <li><strong>PRD 的問題二：製作成本高</strong>：一份好的 PRD 要花 PM 幾天時間</li>
+            <li><strong>PRD 的問題三：難以更新</strong>：一旦需求改變，文件就過時了，但沒人有時間更新</li>
+            <li><strong>原型的優勢</strong>：可以親眼看到、親手體驗，消除所有歧義；Claude Design 讓原型的製作時間從幾天壓縮到幾分鐘</li>
+          </ul>
+          <p>Dan 的新工作流：對話 + 錄音 → 轉錄文字 → 丟給 Claude Design → 3 個原型變體 → 選一個繼續迭代。</p>
+        </aside>
+
+        <h3>Dan 的新 PM 工作流</h3>
+        <div class="cycle-vis">
+          <div class="cycle-node">
+            <div class="cycle-icon">🗣️</div>
+            <div class="cycle-title">對話</div>
+            <div class="cycle-sub">討論問題與特徵，錄音</div>
+          </div>
+          <div class="cycle-node">
+            <div class="cycle-icon">📝</div>
+            <div class="cycle-title">轉錄</div>
+            <div class="cycle-sub">聚焦「為什麼」而非「按鈕在哪」</div>
+          </div>
+          <div class="cycle-node">
+            <div class="cycle-icon">✨</div>
+            <div class="cycle-title">生成</div>
+            <div class="cycle-sub">Claude Design 產出 3 種原型</div>
+          </div>
+          <div class="cycle-node" style="border-color: var(--cardinal);">
+            <div class="cycle-icon">🔄</div>
+            <div class="cycle-title">迭代</div>
+            <div class="cycle-sub">幾分鐘內修改循環</div>
+          </div>
+        </div>
+
+        <div class="story">
+          <span class="story-tag">Pitch-off 大賽的那個時刻</span>
+          <h4>後半場 100% 的提案都是現場做的</h4>
+          <p>Anthropic Labs 有一個叫做「Pitch-offs（提案大賽）」的儀式——大家在會議中提案，試著說服其他人加入自己的團隊。在引入 Claude Design 之前，大家只是上台口頭講，效果普通。</p>
+          <p>第一次用 Claude Design 做提案大賽的時候，事情變了。大賽進行到後半段，100% 的提案都是現場在會議中即時用 Claude Design 製作的原型——有人說出一個想法，另一個人受到啟發，立刻 Fork 出去做出新的版本，現場展示。</p>
+          <blockquote>"The back half of pitches were 100% people building in real time with Claude Design. They were being made in the meeting. This was the pivotal moment that convinced us we should double down."</blockquote>
+          <p>這個時刻讓 Dan 確認：這個工具真的能把「從想法到原型」的時間縮短到「在對話中發生」。這就是他們決定加倍投入的訊號。</p>
+        </div>
+
+        <h3>兩個「為自己做的功能」</h3>
+        <div class="duo">
+          <div class="card">
+            <h4>多人即時協作（Multiplayer）</h4>
+            <p>起源：團隊分享設計時，每次都要先錄影片或架設分支。這個摩擦讓人不舒服。解法：讓多人直接在同一個設計上即時迭代。用戶第一天的需求，正好就是這個。</p>
+          </div>
+          <div class="card">
+            <h4>自動交接給 Claude Code（Hand-off）</h4>
+            <p>起源：設計完成後，要手動把所有對話上下文重新輸入 Claude Code。太慢太繁瑣。解法：自動攜帶所有上下文、一鍵交接。用戶第一天問的第二個問題，正是這個。</p>
+          </div>
+        </div>
+
+        <aside class="primer">
+          <span class="primer-tag">給初學者 · 一句話搞懂「Dogfooding（吃自家狗糧）」</span>
+          <h5>為什麼「用自己的產品」是最好的 QA？</h5>
+          <p>「吃狗糧」是科技業的俚語，意思是讓你的員工在日常工作中使用自己公司的產品，而不只是向外部客戶販售。</p>
+          <ul>
+            <li><strong>好處</strong>：員工是最嚴苛的測試者，他們知道競品的優缺點，也知道真實工作中的痛點</li>
+            <li><strong>Labs 的做法</strong>：整個團隊用 Claude Design 來設計 Claude Design——每天在開發過程中遇到的痛點，就成為明天要修復的功能</li>
+            <li><strong>結果</strong>：Multiplayer 和 Hand-off 都是這樣誕生的</li>
+          </ul>
+          <p>Dan 說：「如果你在做任何開發者工具，而你能用你自己的工具來改善這個工具本身，這是世界上最棒的情況。」</p>
+        </aside>
+      </section>
+
+    </div>
+
+    <!-- TAB IV: 反直覺洞見 -->
+    <div class="tab-content" id="tab-3">
+
+      <section class="chapter">
+        <span class="roman">IV</span>
+        <h2>最反直覺的洞見：為「差一點」的東西做原型</h2>
+        <p class="lede">在 AI 快速進化的時代，有一個看似奇怪但極其重要的建議：不要去做那些「現在已經行得通」的東西，而是要為那些「差一點就能行」的東西做原型。</p>
+
+        <div class="pullquote">
+          <p><strong>"Don't build prototypes for what already works. Build prototypes for what almost works. Because the next model might just solve the rest."</strong>
+          <span class="zh">「不要為那些現在已經行得通的東西做原型。要為那些差一點就能行的東西做原型。因為下一個模型可能直接就解決了剩下的問題。」</span></p>
+          <cite>— Dan Carry, Anthropic Labs</cite>
+        </div>
+
+        <div class="story">
+          <span class="story-tag">Opus 4.7 的潮水效應</span>
+          <h4>等待新模型，比工程修復更快</h4>
+          <p>在 Claude Design 早期開發中，有一大批問題讓工程師百思不得其解。他們沒有寫出精妙的工程架構去修復它們，也沒有透過什麼驚人的洞察去解決它們——他們等到了 Opus 4.7 的發布，問題就迎刃而解了。</p>
+          <blockquote>"A tide that lifts all boats — model releases will do a lot of things for you."</blockquote>
+          <p>這個故事的含義很深遠：在 AI 工具開發中，底層模型的進步速度往往比你的工程努力更快、更有效。如果你花了大量工程資源去「駭」一個當前模型無法原生支援的功能，很可能下一個模型就輕鬆原生支援了——你的工程投入全部白費。</p>
+          <p>因此，明智的策略是：找到「幾乎行」的地方，搞清楚產品的輪廓（Shape），然後讓模型進步來填滿剩下的缺口。</p>
+        </div>
+
+        <aside class="primer">
+          <span class="primer-tag">給初學者 · 一句話搞懂「產品的 Shape（輪廓）」</span>
+          <h5>「輪廓」比「功能清單」更重要</h5>
+          <p>想像你在設計一把椅子。功能清單是：4 條腿、1 個椅背、可以坐。但「輪廓」是：這把椅子讓人感覺舒適、看起來優雅、適合辦公桌旁邊。</p>
+          <ul>
+            <li><strong>功能清單</strong>：可以列出，但可能做出糟糕的產品</li>
+            <li><strong>Shape（輪廓）</strong>：產品應該給用戶帶來什麼感覺、解決什麼核心問題</li>
+            <li><strong>為什麼難</strong>：你只能通過迭代來發現正確的輪廓，無法在開始前就知道</li>
+          </ul>
+          <p>Dan 說 Claude Design 99% 的價值來自 10 週的迭代，而非最初的想法。這個「99% 來自迭代」就是在反覆修正輪廓——直到找到那個「對的感覺」。</p>
+        </aside>
+      </section>
+
+      <section class="chapter">
+        <span class="roman">IV</span>
+        <h2>進階控制項的失敗：為所有人服務</h2>
+
+        <p class="lede">不是所有的失敗都是壞事——如果你的迭代循環夠快，失敗反而是最重要的學習。進階控制項的故事是 Dan 分享的最誠實的案例。</p>
+
+        <div class="story">
+          <span class="story-tag">一週的失敗，而非一季的災難</span>
+          <h4>進階用戶愛了，其他人棄了</h4>
+          <p>早期開發中，Claude Design 加入了一套「極度精細的像素控制功能」——進階用戶可以對每一個元素進行精確操控。幾位最活躍的測試者超級喜歡，給了大量正面反饋。</p>
+          <p>但當深入挖掘使用數據時，現實是殘酷的：除了那幾位進階用戶，幾乎所有人都討厭這個功能。不只是不喜歡——是非常討厭。這些控制項讓人困惑，並且對產品體驗產生了主動的負面影響。</p>
+          <blockquote>"We ripped all of them out in about a week. From discovery to ripping out: one week."</blockquote>
+          <p>如果這是一個季度開發週期的專案，這個功能可能會讓整個季度的方向走偏。但因為迭代循環夠小，一週解決問題、繼續向前。</p>
+          <p>教訓：<strong>早期的熱情反饋可能來自最活躍的用戶，而非最有代表性的用戶。</strong> 數據才是最終裁判。</p>
+        </div>
+
+        <h3>三個明天就能做的行動</h3>
+
+        <div class="action-card">
+          <span class="action-num">行動 1 · 今天就可以做</span>
+          <h4>下次想寫 PRD 的時候，直接跳過它</h4>
+          <p>和團隊成員或 Claude 討論想法，把對話錄音並轉錄。討論重點放在「為什麼要解決這個問題」和「好方案應該具備什麼特徵」。然後把轉錄丟給 Claude（或 Claude Design），要求產出三種不同的設計原型。</p>
+        </div>
+
+        <div class="action-card">
+          <span class="action-num">行動 2 · 這週某個下午</span>
+          <h4>建一個你一直想要的內部工具</h4>
+          <p>找一件你在等待、想自動化、或能加速你工作流的事情。排除一切干擾，用一個下午把它做出來。你會發現速度快得讓你自己吃驚。「大家總是在等待工具」，但在 AI 時代，為自己建工具的速度已經是驚人的了。</p>
+        </div>
+
+        <div class="action-card">
+          <span class="action-num">行動 3 · 最難的一個</span>
+          <h4>24 小時內交付一個真實用戶需求</h4>
+          <p>挑一個真正的功能需求（不是修 Bug），在 24 小時內完成並推到用戶面前，然後索取反饋。你會赫然發現你們現有流程的所有絆腳石：部署方式、Code Review 流程、團隊對齊機制。這是最有啟發性的診斷工具。</p>
+        </div>
+
+        <aside class="primer">
+          <span class="primer-tag">給初學者 · 一句話搞懂「發布後 62 項改進」是怎麼做到的</span>
+          <h5>「肌肉記憶」讓發布後的衝刺自然發生</h5>
+          <p>Claude Design 週五發布，週一前 62 項改進。聽起來嚇人，但 Dan 說這「一點都不累、完全自然」。原因是：在過去 10 週裡，團隊每天都在跑 Ship-Observe-Learn 循環，這個速度已經成為「正常工作方式」，而不是「緊急衝刺」。</p>
+          <ul>
+            <li><strong>不是英雄主義</strong>：62 項改進不是通宵熬夜的結果</li>
+            <li><strong>是肌肉記憶</strong>：10 週下來，快速回應反饋已經是團隊的預設工作模式</li>
+            <li><strong>教訓</strong>：「速度文化」需要時間建立；發布前的每天迭代，就是在培養這個能力</li>
+          </ul>
+          <p>Dan 的說法是：「這對團隊裡的每個人來說都很自然，因為在過去 10 週裡，這就是我們每天的工作方式。」快速交付不是例外狀態，而是正常狀態。</p>
+        </aside>
+      </section>
+
+    </div>
+
+    <!-- TAB V: 思考題 -->
+    <div class="tab-content" id="tab-4">
+
+      <section class="chapter">
+        <span class="roman">V</span>
+        <h2>深度思考題</h2>
+        <p class="lede">從 Dan Carry 的演講出發，六個問題探討 AI 時代的產品管理、組織設計、以及工具設計哲學。</p>
+
+        <div class="discuss">
+          <p>Q1：「文件是不精確的，原型是具體的」——但原型也可能是不精確的。一個互動原型可能讓用戶關注視覺效果，而忽略底層的邏輯問題。在什麼情況下，PRD 比原型更有價值？</p>
+          <details>
+            <summary>查看建議思考方向</summary>
+            <ul>
+              <li><strong>歷史對照：</strong>設計圍欄效應（Streetlight Effect）——人們傾向於在「看得到」的地方找問題，而不是「問題實際發生」的地方。原型的高保真度可能讓人忽視系統設計的深層問題。</li>
+              <li><strong>講者隱含的論點：</strong>Dan 強調轉錄的內容應聚焦在「問題是什麼」和「好方案的特徵」，而不是「按鈕在哪裡」。這暗示原型最有用的場景是對齊「感覺」，而非規格化「邏輯」。</li>
+              <li><strong>職涯啟發：</strong>如果你在一個需要高度合規（例如醫療、法律、金融）的行業，「原型」和「規格文件」的比重應如何調整？</li>
+              <li><strong>反向思考：</strong>有時候「用文字強迫思考」的過程本身就有價值——它讓你必須把模糊的想法轉換成精確的語言。完全跳過 PRD，是否也跳過了這個強迫自我澄清的過程？</li>
+            </ul>
+          </details>
+        </div>
+
+        <div class="discuss">
+          <p>Q2：Labs 的「下注工廠」是成功的，但它生產出的產品（Claude Code、Claude Design、MCP）都是開發者工具。這是否和「開發者正是 Labs 的用戶」有關？這個模式對非技術型產品是否同樣適用？</p>
+          <details>
+            <summary>查看建議思考方向</summary>
+            <ul>
+              <li><strong>歷史對照：</strong>Atlassian（JIRA、Confluence）的崛起——工程師為工程師做工具，因為自己最了解痛點。但 Atlassian 最終要把工具賣給非工程師（PM、設計師），這個過渡很困難。</li>
+              <li><strong>講者隱含的論點：</strong>Dan 說「我們用 Claude Design 設計 Claude Design」——工具設計師即工具用戶的閉環，是最高效的 QA 機制。但這個閉環的前提是「開發者和目標用戶重疊」。</li>
+              <li><strong>職涯啟發：</strong>如果你在做醫療 AI 產品，但你不是醫生，你如何重現這種「自己用自己的工具」的設計優勢？有沒有替代方案？</li>
+              <li><strong>反向思考：</strong>「開發者工具由開發者做」可能產生一種偏見——過度技術化、對新手不友善、功能過多。Claude Design 引入的「進階控制項」失敗，是否就是這個偏見的體現？</li>
+            </ul>
+          </details>
+        </div>
+
+        <div class="discuss">
+          <p>Q3：Dan 的「為差一點就能行的東西做原型」建議，背後的假設是「模型進步速度夠快，能填補缺口」。但如果你正在研發的東西並非 AI 優先，這個邏輯是否成立？</p>
+          <details>
+            <summary>查看建議思考方向</summary>
+            <ul>
+              <li><strong>歷史對照：</strong>在手機 CPU 快速提升的時代，遊戲開發者常常「先做超高規格的圖形引擎，等硬體趕上來」。這個策略在 AI 時代的對應是什麼？有哪些不同？</li>
+              <li><strong>講者隱含的論點：</strong>這個建議的關鍵假設是：你押注的能力提升（模型智能）的速度和方向是可預測的。Anthropic 作為模型提供商，對自己模型的路線圖有獨特的信息優勢。外部開發者的情況如何？</li>
+              <li><strong>職涯啟發：</strong>如果你在創業公司負責 AI 產品規劃，你如何評估「哪些問題模型進步會解決，哪些需要工程手段解決」？這是否應該成為技術選型中的標準考量維度？</li>
+              <li><strong>反向思考：</strong>如果 Anthropic 的路線圖改變，原本「差一點就行」的功能可能永遠等不到模型進步來填補。押注供應商路線圖的風險如何 hedge？</li>
+            </ul>
+          </details>
+        </div>
+
+        <div class="discuss">
+          <p>Q4：3 人團隊的超低協作成本是 Labs 成功的關鍵之一。但當產品需要從「Research Preview」擴展到「企業級產品」時，小團隊模式能否持續？或者規模化必然帶來協作成本的膨脹？</p>
+          <details>
+            <summary>查看建議思考方向</summary>
+            <ul>
+              <li><strong>歷史對照：</strong>Basecamp / 37signals 長期堅持小團隊哲學，但他們的產品沒有達到 Google 或 Meta 的規模。Netflix 的「高人才密度，少規則」文化在擴展到萬人後面臨的挑戰。</li>
+              <li><strong>講者隱含的論點：</strong>Dan 只談 Labs 的模式，沒有談「Labs 的產品如何被更大的 Anthropic 團隊接手和維護」。這個轉換過程是什麼樣的？</li>
+              <li><strong>職涯啟發：</strong>如果你被指派帶領一個從小團隊過渡到大團隊的產品，在哪個時間點、哪些「小團隊習慣」應該保留，哪些必須捨棄？</li>
+              <li><strong>反向思考：</strong>Claude 本身是 Labs 最大的「協作成員」。隨著 AI 能力提升，「1 人 + Claude」可能逐漸取代「3 人團隊」。Labs 的團隊規模是否會越來越小？</li>
+            </ul>
+          </details>
+        </div>
+
+        <div class="discuss">
+          <p>Q5：进階控制项的失敗揭示了「早期活躍用戶反饋的代表性偏差」。但如果你的產品目標用戶就是這些進階用戶（例如開發者工具），你如何避免過度優化某個子群體？</p>
+          <details>
+            <summary>查看建議思考方向</summary>
+            <ul>
+              <li><strong>歷史對照：</strong>Vim 和 Emacs 是「進階用戶愛到極致、新手完全進不去」的工具。VSCode 選擇了不同的定位——對新手友好，但也可以足夠進階。Claude Code 是哪種定位？</li>
+              <li><strong>講者隱含的論點：</strong>Dan 說的「為所有人提升工藝水平」，意味著 Claude Design 的目標是「降低生產好設計的門檻」，而非「讓設計師更快達到極致精細控制」。這是截然不同的產品定位。</li>
+              <li><strong>職涯啟發：</strong>在 Beta 測試設計中，如何確保你的早期用戶群能代表目標市場，而非只是最熱情的「科技愛好者」？有哪些具體的抽樣策略？</li>
+              <li><strong>反向思考：</strong>有時候「先服務好進階用戶，再慢慢下放到大眾」是正確的策略（例如 iPhone 初期定位高端）。進階控制項的失敗是否只是「時機不對」，而不是「方向不對」？</li>
+            </ul>
+          </details>
+        </div>
+
+        <div class="discuss">
+          <p>Q6：Dan 說 Claude Design 匯出的是標準 HTML/CSS/JS，因為「這些設計是屬於你的」。這種最高開放度的策略，是否會讓用戶「用完就走」，損害產品的留存率？開放性和黏著性如何平衡？</p>
+          <details>
+            <summary>查看建議思考方向</summary>
+            <ul>
+              <li><strong>歷史對照：</strong>Figma 的開放 API 和插件生態讓它成為設計工具的標準，開放性反而創造了更強的網絡效應。Apple 的 App Store 採取相反策略——封閉生態創造護城河。在 AI 工具時代，哪個模式更適用？</li>
+              <li><strong>講者隱含的論點：</strong>Dan 說 MCP 整合將讓「任何設計工具」都能接入 Claude Design。這暗示他們的護城河不是「鎖住用戶的數據」，而是「讓 Claude 成為所有工具的最佳大腦」。</li>
+              <li><strong>職涯啟發：</strong>如果你在 B2B SaaS 公司，你如何設計數據可攜帶性（Data Portability）政策？高度開放是否反而是贏得企業客戶信任的最佳策略？</li>
+              <li><strong>反向思考：</strong>Claude Design 的開放輸出格式（HTML/CSS/JS）意味著用戶可以直接把設計帶到競爭對手的工具中。這個風險是否被「吸引更多用戶」的收益所抵消？Anthropic 的商業模式如何在這個前提下成立？</li>
+            </ul>
+          </details>
+        </div>
+
+        <hr class="section-rule">
+        <h3>名詞速查表</h3>
+        <div class="ledger">
+          <div class="ledger-row">
+            <div class="l-label">Claude Design</div>
+            <div class="l-desc">Anthropic Labs 推出的設計協作工具，讓用戶與 Claude 共同建立視覺化原型和設計稿</div>
+            <div class="l-num">Product</div>
+          </div>
+          <div class="ledger-row">
+            <div class="l-label">Bet Factory</div>
+            <div class="l-desc">下注工廠，Labs 的核心定位——小團隊快速實驗，行得通加倍、行不通果斷放棄</div>
+            <div class="l-num">Culture</div>
+          </div>
+          <div class="ledger-row">
+            <div class="l-label">PRD</div>
+            <div class="l-desc">Product Requirements Document，用文字描述功能的傳統 PM 工具；已被 Dan 的原型工作流取代</div>
+            <div class="l-num">Process</div>
+          </div>
+          <div class="ledger-row">
+            <div class="l-label">Dogfooding</div>
+            <div class="l-desc">使用自己的產品，讓開發者成為用戶，是最快發現問題的 QA 方式</div>
+            <div class="l-num">Practice</div>
+          </div>
+          <div class="ledger-row">
+            <div class="l-label">Shape（輪廓）</div>
+            <div class="l-desc">產品應給用戶帶來的感覺和核心價值；比功能清單更重要，只能透過迭代發現</div>
+            <div class="l-num">Concept</div>
+          </div>
+          <div class="ledger-row">
+            <div class="l-label">Tide lifts all boats</div>
+            <div class="l-desc">模型每次發布都是「拉高所有船隻的潮水」——新模型解決了大量工程無法解決的問題</div>
+            <div class="l-num">Metaphor</div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+  </div>
+</article>
+
+<footer class="colophon">
+  <div class="colophon-grid">
+    <div>
+      <h6>Conference</h6>
+      <p>Code with Claude London 2026</p>
+      <p>Anthropic Developer Conference</p>
+      <p>May 19–20, 2026 · London</p>
+    </div>
+    <div>
+      <h6>This Session</h6>
+      <p>Session 21 · Day 2</p>
+      <p>Dan Carry</p>
+      <p>Product Manager, Anthropic Labs</p>
+      <p>Designing with Claude: From Prompt to Production</p>
+    </div>
+    <div>
+      <h6>Learning Pipeline</h6>
+      <p>Google Docs Transcript</p>
+      <p>→ Structured Notes</p>
+      <p>→ Interactive HTML</p>
+    </div>
+  </div>
+  <hr class="colophon-rule">
+  <div class="colophon-foot">
+    © The Claude Dispatch · Set in Fraunces, Newsreader &amp; JetBrains Mono · 12 primers · 3 stories · 6 guided questions
+  </div>
+</footer>
+
+<button id="back-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<script>
+const pb = document.getElementById('progress-bar');
+window.addEventListener('scroll', () => {
+  const h = document.documentElement;
+  pb.style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%';
+});
+
+const cursor = document.getElementById('cursor');
+if ('ontouchstart' in window) {
+  cursor.style.display = 'none';
+} else {
+  document.addEventListener('mousemove', e => {
+    cursor.style.left = e.clientX + 'px';
+    cursor.style.top = e.clientY + 'px';
+  });
+  document.querySelectorAll('a, button, .tab-btn, .card, .cycle-node, .team-stage, .ledger-row, .term, .action-card').forEach(el => {
+    el.addEventListener('mouseenter', () => cursor.classList.add('hovered'));
+    el.addEventListener('mouseleave', () => cursor.classList.remove('hovered'));
+  });
+}
+
+const tabs = document.querySelectorAll('.tab-btn');
+const indicator = document.querySelector('.tab-indicator');
+const contents = document.querySelectorAll('.tab-content');
+
+function setIndicator(tab) {
+  const rect = tab.getBoundingClientRect();
+  const navRect = tab.parentElement.getBoundingClientRect();
+  indicator.style.left = (rect.left - navRect.left) + 'px';
+  indicator.style.width = rect.width + 'px';
+}
+
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    contents.forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    setIndicator(tab);
+    document.querySelectorAll('#tab-' + tab.dataset.tab + ' .chapter').forEach(c => revealObs.observe(c));
+    document.querySelectorAll('#tab-' + tab.dataset.tab + ' .bar-fill').forEach(b => barObs.observe(b));
+  });
+});
+
+setTimeout(() => setIndicator(document.querySelector('.tab-btn.active')), 100);
+window.addEventListener('resize', () => setIndicator(document.querySelector('.tab-btn.active')));
+
+const revealObs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('revealed'); });
+}, { threshold: 0.08 });
+document.querySelectorAll('.chapter').forEach(c => revealObs.observe(c));
+
+const barObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const el = e.target;
+      if (el.dataset.w) setTimeout(() => { el.style.width = el.dataset.w + '%'; }, 200);
+      barObs.unobserve(el);
+    }
+  });
+}, { threshold: 0.3 });
+document.querySelectorAll('.bar-fill').forEach(b => barObs.observe(b));
+</script>
+<style>#home-btn{position:fixed;bottom:32px;left:32px;width:44px;height:44px;border-radius:50%;background:var(--cardinal,#8c1515);color:var(--paper,#efe8d6);display:flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:3px 3px 0 var(--ink,#1a1410);z-index:901;font-size:20px;transition:transform .2s;}#home-btn:hover{transform:translateY(-4px);}#home-btn::after{content:'';position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;color:var(--ink-faint,#7a6651);opacity:0;transition:opacity .2s;}#home-btn:hover::after{content:'HOME';opacity:1;}</style>
+<a id='home-btn' href='./index.html' title='Back to Index'>&#8962;</a></body>
+</html>

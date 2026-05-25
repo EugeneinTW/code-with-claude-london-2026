@@ -1,0 +1,1603 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Capability Curve — The Claude Dispatch · №22</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper:        #efe8d6;
+  --paper-deep:   #e4d9be;
+  --paper-edge:   #d6c89f;
+  --ink:          #1a1410;
+  --ink-soft:     #4a3a2b;
+  --ink-faint:    #7a6651;
+  --cardinal:     #8c1515;
+  --cardinal-dk:  #5e0e0e;
+  --cardinal-soft:#b34646;
+  --gold:         #b48729;
+  --gold-soft:    #d8b261;
+  --gold-bg:      #f7eccd;
+  --moss:         #586a3f;
+  --moss-bg:      #e6e6c9;
+  --rule:         rgba(26,20,16,0.14);
+  --rule-soft:    rgba(26,20,16,0.07);
+}
+
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Newsreader', 'Noto Serif TC', Georgia, serif;
+  font-size: 18px;
+  line-height: 1.72;
+  overflow-x: hidden;
+}
+
+body::before {
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:999;
+  background-image:
+    radial-gradient(rgba(26,20,16,0.04) 1px, transparent 1px),
+    radial-gradient(rgba(26,20,16,0.025) 1px, transparent 1px);
+  background-size: 3px 3px, 7px 7px;
+  background-position: 0 0, 1px 1px;
+  opacity:.55; mix-blend-mode:multiply;
+}
+
+#progress-bar {
+  position:fixed; top:0; left:0; height:3px; width:0%;
+  background: linear-gradient(90deg, var(--cardinal), var(--gold));
+  z-index:1000; transition:width 0.1s linear;
+}
+
+#cursor {
+  position:fixed; width:22px; height:22px; border-radius:50%;
+  border:2px solid var(--cardinal); pointer-events:none; z-index:9998;
+  transform:translate(-50%,-50%); transition:transform 0.15s ease, width 0.2s, height 0.2s;
+  mix-blend-mode:multiply;
+}
+#cursor.big { width:52px; height:52px; }
+
+/* MASTHEAD */
+.masthead {
+  background: var(--ink);
+  color: var(--paper);
+  text-align:center;
+  padding: 10px 32px;
+  font-family:'JetBrains Mono', monospace;
+  font-size:11px;
+  letter-spacing:0.18em;
+  text-transform:uppercase;
+}
+.masthead span { color:var(--gold-soft); margin:0 8px; }
+
+/* HERO */
+.hero {
+  border-bottom: 2px solid var(--ink);
+  padding: 52px 0 44px;
+  background: var(--paper-deep);
+}
+.hero .container {
+  max-width:1080px; margin:0 auto; padding:0 32px;
+}
+.hero-grid {
+  display:grid;
+  grid-template-columns: 160px 1fr;
+  gap: 40px;
+  align-items:start;
+}
+.issue-stamp {
+  font-family:'Fraunces',serif;
+  font-size:72px;
+  font-weight:700;
+  line-height:1;
+  color:var(--cardinal);
+  transform:rotate(-4deg);
+  white-space:nowrap;
+  text-shadow: 2px 2px 0 var(--paper), 3px 3px 0 var(--cardinal-dk);
+  display:flex; flex-direction:column; align-items:center;
+}
+.issue-stamp small {
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  letter-spacing:0.2em;
+  color:var(--gold);
+  font-weight:700;
+  margin-top:4px;
+}
+h1 {
+  font-family:'Fraunces',serif;
+  font-size:clamp(34px, 4.6vw, 58px);
+  font-weight:800;
+  line-height:1.1;
+  color:var(--ink);
+  margin-bottom:16px;
+}
+h1 em { font-style:italic; color:var(--cardinal); }
+.deck {
+  font-family:'Newsreader',serif;
+  font-size:21px;
+  line-height:1.55;
+  color:var(--ink-soft);
+  max-width:760px;
+  margin-bottom:20px;
+}
+.byline {
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  color:var(--ink-faint);
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  display:flex; gap:16px; flex-wrap:wrap; align-items:center;
+}
+.byline-sep { color:var(--rule); }
+
+/* STAT STRIP */
+.stat-strip {
+  background: var(--ink);
+  color: var(--paper);
+  display:flex;
+  border-bottom:2px solid var(--gold);
+}
+.stat-item {
+  flex:1;
+  padding:22px 24px;
+  border-right:1px solid rgba(239,232,214,0.12);
+  cursor:default;
+  position:relative;
+}
+.stat-item:last-child { border-right:none; }
+.stat-num {
+  font-family:'Fraunces',serif;
+  font-size:38px;
+  font-weight:800;
+  color:var(--gold-soft);
+  line-height:1;
+  display:block;
+}
+.stat-label {
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  color:rgba(239,232,214,0.55);
+  margin-top:6px;
+  display:block;
+}
+.stat-tooltip {
+  position:absolute; bottom:calc(100% + 8px); left:50%;
+  transform:translateX(-50%) translateY(6px);
+  background:var(--ink); color:var(--paper);
+  border:1px solid var(--gold);
+  padding:10px 14px; font-size:13px;
+  font-family:'Newsreader',serif;
+  width:220px; text-align:center; line-height:1.5;
+  opacity:0; pointer-events:none; transition:all 0.2s ease;
+  z-index:100;
+}
+.stat-tooltip::after {
+  content:''; position:absolute; top:100%; left:50%;
+  transform:translateX(-50%);
+  border:6px solid transparent; border-top-color:var(--gold);
+}
+.stat-item:hover .stat-tooltip { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* NAV */
+.nav-wrap {
+  position:sticky; top:0; z-index:200;
+  background:var(--paper-deep);
+  border-bottom:2px solid var(--ink);
+  display:flex; align-items:center;
+  padding:0 32px;
+  overflow-x:auto;
+}
+.nav-wrap button {
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  background:none; border:none;
+  color:var(--ink-faint);
+  padding:16px 20px;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:color 0.2s;
+  position:relative;
+}
+.nav-wrap button:hover,
+.nav-wrap button.active { color:var(--ink); }
+.tab-indicator {
+  position:absolute; bottom:0; height:2px;
+  background:var(--cardinal);
+  transition:left 0.3s cubic-bezier(.4,0,.2,1), width 0.3s cubic-bezier(.4,0,.2,1);
+}
+
+/* CONTAINER */
+.container { max-width:1080px; margin:0 auto; padding:0 32px; }
+.tab-content { display:none; padding:60px 0; }
+.tab-content.active { display:block; }
+
+/* CHAPTER */
+.chapter {
+  position:relative;
+  margin-bottom:72px;
+  opacity:0; transform:translateY(22px);
+  transition:opacity 0.6s ease, transform 0.6s ease;
+}
+.chapter.revealed { opacity:1; transform:translateY(0); }
+.roman {
+  position:absolute; right:0; top:-16px;
+  font-family:'Fraunces',serif;
+  font-size:220px; font-weight:800; font-style:italic;
+  color:var(--ink); opacity:0.045;
+  line-height:1; pointer-events:none; z-index:0;
+  user-select:none;
+}
+h2 {
+  font-family:'Fraunces',serif;
+  font-size:44px; font-weight:800; line-height:1.15;
+  margin-bottom:28px;
+  padding-left:20px;
+  border-left:4px solid var(--cardinal);
+  position:relative; z-index:1;
+}
+h3 {
+  font-family:'Fraunces',serif;
+  font-size:22px; font-weight:700;
+  margin:32px 0 14px;
+  color:var(--ink);
+}
+h4 {
+  font-family:'Fraunces',serif;
+  font-size:18px; font-weight:700;
+  margin:20px 0 10px;
+  color:var(--ink);
+}
+h5 {
+  font-family:'Fraunces',serif;
+  font-size:18px; font-weight:600; font-style:italic;
+  margin-bottom:10px;
+}
+p {
+  max-width:760px;
+  color:var(--ink-soft);
+  margin-bottom:18px;
+  position:relative; z-index:1;
+}
+.lede {
+  font-size:21px;
+  color:var(--ink);
+  font-weight:400;
+  line-height:1.6;
+  margin-bottom:28px;
+}
+
+/* PULLQUOTE */
+.pullquote {
+  max-width:820px;
+  border-left:4px solid var(--cardinal);
+  padding:24px 28px;
+  margin:36px 0;
+  background:var(--gold-bg);
+  position:relative; z-index:1;
+}
+.pullquote p { font-size:20px; font-style:italic; color:var(--ink); max-width:100%; margin-bottom:8px; }
+.pullquote .zh {
+  display:block;
+  border-top:1px dashed var(--rule);
+  padding-top:10px;
+  margin-top:10px;
+  font-size:15px;
+  color:var(--ink-faint);
+  font-style:normal;
+}
+.pullquote cite {
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  color:var(--ink-faint);
+  letter-spacing:0.1em;
+}
+
+/* PRIMER */
+aside.primer {
+  background:var(--gold-bg);
+  border:1px solid var(--paper-edge);
+  border-left:4px solid var(--gold);
+  padding:24px 28px;
+  margin:32px 0;
+  max-width:820px;
+  position:relative; z-index:1;
+}
+.primer-tag {
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;
+  letter-spacing:0.16em;
+  text-transform:uppercase;
+  color:var(--gold);
+  display:block;
+  margin-bottom:8px;
+}
+aside.primer h5 { color:var(--ink); }
+aside.primer p { font-size:16px; max-width:100%; color:var(--ink-soft); }
+aside.primer ul { padding-left:20px; margin:10px 0; }
+aside.primer li { font-size:16px; color:var(--ink-soft); margin-bottom:6px; }
+
+/* STORY */
+.story {
+  background:var(--paper-deep);
+  border:1px solid var(--paper-edge);
+  border-top:3px solid var(--cardinal);
+  padding:28px 32px;
+  margin:36px 0;
+  max-width:820px;
+  position:relative; z-index:1;
+}
+.story-tag {
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;
+  letter-spacing:0.16em;
+  text-transform:uppercase;
+  color:var(--cardinal);
+  display:block;
+  margin-bottom:10px;
+}
+.story h4 { font-style:italic; color:var(--ink); margin-top:0; }
+.story p { font-size:16px; max-width:100%; }
+.story blockquote {
+  border-left:3px solid var(--cardinal-soft);
+  padding:10px 16px;
+  margin:14px 0;
+  font-style:italic;
+  color:var(--cardinal-dk);
+  background:rgba(140,21,21,0.04);
+}
+
+/* DISCUSS */
+.discuss {
+  background:var(--moss-bg);
+  border-left:4px solid var(--moss);
+  padding:22px 28px;
+  margin:24px 0;
+  max-width:820px;
+  position:relative; z-index:1;
+}
+.discuss p { font-size:16px; max-width:100%; color:var(--ink); font-weight:500; margin-bottom:10px; }
+.discuss details summary {
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  letter-spacing:0.1em;
+  color:var(--moss);
+  cursor:pointer;
+  text-transform:uppercase;
+  padding:6px 0;
+}
+.discuss details ul { padding-left:20px; margin-top:10px; }
+.discuss details li { font-size:15px; color:var(--ink-soft); margin-bottom:8px; }
+
+/* TERM TOOLTIP */
+.term {
+  background:rgba(180,135,41,0.15);
+  border-bottom:1px dashed var(--cardinal);
+  cursor:help;
+  position:relative;
+}
+.term::after {
+  content:attr(data-def);
+  position:absolute; bottom:calc(100% + 6px); left:50%;
+  transform:translateX(-50%);
+  background:var(--ink); color:var(--paper);
+  font-family:'Newsreader',serif;
+  font-size:13px; line-height:1.5;
+  padding:8px 12px; width:240px; text-align:center;
+  opacity:0; pointer-events:none;
+  transition:opacity 0.2s ease;
+  z-index:500; white-space:normal;
+  border-bottom:3px solid var(--cardinal);
+}
+.term:hover::after { opacity:1; }
+
+/* DUO CARDS */
+.duo {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:20px;
+  max-width:820px;
+  margin:28px 0;
+}
+.duo-card {
+  background:var(--paper-deep);
+  border:1px solid var(--paper-edge);
+  padding:22px 24px;
+  transition:transform 0.18s ease, box-shadow 0.18s ease;
+  cursor:default;
+}
+.duo-card:hover {
+  transform:translateY(-4px);
+  box-shadow:4px 4px 0 var(--ink);
+}
+.duo-card h4 { font-size:16px; margin-bottom:8px; }
+.duo-card p { font-size:15px; max-width:100%; margin-bottom:0; }
+.duo-card .tag {
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;
+  letter-spacing:0.14em;
+  text-transform:uppercase;
+  color:var(--cardinal);
+  display:block;
+  margin-bottom:6px;
+}
+
+/* LEDGER LIST */
+.ledger { margin:28px 0; max-width:820px; }
+.ledger-item {
+  display:flex; align-items:baseline;
+  gap:16px; padding:14px 16px;
+  border-bottom:1px solid var(--rule);
+  position:relative;
+  transition:padding-left 0.2s ease;
+  cursor:default;
+}
+.ledger-item::before {
+  content:'';
+  position:absolute; left:0; top:0; bottom:0; width:0;
+  background:var(--cardinal);
+  transition:width 0.25s ease;
+}
+.ledger-item:hover { padding-left:28px; }
+.ledger-item:hover::before { width:3px; }
+.ledger-num {
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px; font-weight:700;
+  color:rgba(26,20,16,0.25);
+  min-width:28px;
+  transition:color 0.2s ease;
+}
+.ledger-item:hover .ledger-num { color:var(--cardinal); }
+.ledger-text { font-size:16px; color:var(--ink-soft); line-height:1.55; }
+.ledger-text strong { color:var(--ink); }
+
+/* BENCHMARK VISUAL */
+.benchmark-block {
+  max-width:820px; margin:36px 0;
+  border:1px solid var(--paper-edge);
+  background:var(--paper-deep);
+  padding:28px 32px;
+}
+.benchmark-block h4 { margin-bottom:20px; }
+.bench-row {
+  display:flex; align-items:center;
+  gap:14px; margin-bottom:14px;
+}
+.bench-label {
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  min-width:130px;
+  color:var(--ink-faint);
+}
+.bench-track {
+  flex:1; height:22px;
+  background:var(--paper-edge);
+  border-radius:2px;
+  overflow:visible;
+  position:relative;
+}
+.bench-fill {
+  height:100%; width:0%;
+  background:var(--cardinal);
+  border-radius:2px;
+  transition:width 1.5s ease;
+  position:relative;
+}
+.bench-fill.gold { background:var(--gold); }
+.bench-fill.saturated {
+  background:repeating-linear-gradient(45deg, var(--cardinal), var(--cardinal) 8px, var(--cardinal-soft) 8px, var(--cardinal-soft) 16px);
+}
+.bench-pct {
+  font-family:'JetBrains Mono',monospace;
+  font-size:13px; font-weight:700;
+  min-width:60px;
+  color:var(--ink);
+}
+.bench-note {
+  font-size:13px; font-style:italic; color:var(--ink-faint);
+  margin-top:8px;
+}
+
+/* THREE PILLARS */
+.pillars {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:16px;
+  max-width:820px;
+  margin:32px 0;
+}
+.pillar {
+  background:var(--paper-deep);
+  border:1px solid var(--paper-edge);
+  border-top:4px solid var(--cardinal);
+  padding:22px 20px;
+  text-align:center;
+  transition:transform 0.2s ease, box-shadow 0.2s ease;
+  cursor:default;
+}
+.pillar:hover {
+  transform:translateY(-5px);
+  box-shadow:4px 4px 0 var(--ink);
+}
+.pillar-icon {
+  font-family:'Fraunces',serif;
+  font-size:42px;
+  color:var(--cardinal);
+  font-weight:800;
+  line-height:1;
+  margin-bottom:8px;
+  display:block;
+}
+.pillar h4 { font-size:16px; margin:8px 0 6px; }
+.pillar p { font-size:14px; max-width:100%; margin-bottom:0; }
+
+/* AGENT LOOP VISUAL */
+.agent-loop {
+  max-width:820px; margin:36px 0;
+  display:flex; align-items:center; justify-content:center;
+  gap:0;
+  flex-wrap:wrap;
+}
+.loop-node {
+  background:var(--paper-deep);
+  border:2px solid var(--ink);
+  padding:16px 20px;
+  text-align:center;
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  min-width:140px;
+  transition:background 0.2s;
+  cursor:default;
+}
+.loop-node:hover { background:var(--ink); color:var(--paper); }
+.loop-arrow {
+  font-size:22px; color:var(--cardinal);
+  padding:0 8px;
+  font-weight:700;
+}
+.loop-node.highlight { border-color:var(--cardinal); }
+
+/* EVAL CHART */
+.eval-block {
+  max-width:820px; margin:36px 0;
+  padding:28px 32px;
+  background:var(--paper-deep);
+  border:1px solid var(--paper-edge);
+}
+.eval-row {
+  display:grid;
+  grid-template-columns:160px 1fr 80px;
+  align-items:center;
+  gap:14px; margin-bottom:14px;
+}
+.eval-label {
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px; color:var(--ink-faint);
+}
+.eval-track {
+  height:28px; background:var(--paper-edge);
+  border-radius:2px; overflow:hidden; position:relative;
+}
+.eval-fill {
+  height:100%; width:0%;
+  transition:width 1.5s ease;
+  display:flex; align-items:center;
+  padding-right:8px;
+  justify-content:flex-end;
+}
+.eval-fill.c1 { background:var(--cardinal-soft); }
+.eval-fill.c2 { background:var(--cardinal); }
+.eval-fill.c3 {
+  background:repeating-linear-gradient(45deg, var(--cardinal-dk), var(--cardinal-dk) 6px, var(--cardinal) 6px, var(--cardinal) 12px);
+}
+.eval-amt {
+  font-family:'JetBrains Mono',monospace;
+  font-size:13px; font-weight:700; color:var(--ink);
+}
+
+/* STRATEGY STACK */
+.strategy-stack { max-width:820px; margin:32px 0; }
+.stack-item {
+  display:grid;
+  grid-template-columns:48px 1fr;
+  gap:0;
+  border:1px solid var(--paper-edge);
+  margin-bottom:-1px;
+  padding:18px 20px;
+  transition:padding-left 0.2s ease, background 0.2s;
+  cursor:default;
+  position:relative;
+}
+.stack-item::before {
+  content:''; position:absolute; left:0; top:0; bottom:0; width:0;
+  background:var(--cardinal);
+  transition:width 0.25s ease;
+}
+.stack-item:hover { padding-left:32px; background:var(--gold-bg); }
+.stack-item:hover::before { width:4px; }
+.stack-num {
+  font-family:'Fraunces',serif;
+  font-size:28px; font-weight:800; font-style:italic;
+  color:rgba(26,20,16,0.15);
+  line-height:1;
+  transition:color 0.2s;
+}
+.stack-item:hover .stack-num { color:var(--cardinal); }
+.stack-body h4 { font-size:16px; margin:0 0 5px; }
+.stack-body p { font-size:15px; max-width:100%; margin-bottom:0; }
+
+/* COMPARISON TABLE */
+.compare-table {
+  width:100%; max-width:820px;
+  border-collapse:collapse;
+  margin:28px 0;
+  font-size:15px;
+}
+.compare-table th {
+  background:var(--ink);
+  color:var(--paper);
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  padding:12px 16px;
+  text-align:left;
+}
+.compare-table td {
+  padding:12px 16px;
+  border-bottom:1px solid var(--rule);
+  color:var(--ink-soft);
+  vertical-align:top;
+}
+.compare-table tr:nth-child(even) td { background:var(--paper-deep); }
+.compare-table td:first-child {
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  color:var(--ink-faint);
+  font-weight:700;
+}
+.compare-table .good { color:var(--moss); font-weight:600; }
+.compare-table .bad { color:var(--cardinal); }
+
+/* FOOTER */
+.colophon {
+  background:var(--ink);
+  color:var(--paper-deep);
+  padding:56px 0 36px;
+  border-top:3px solid var(--gold);
+}
+.colophon .container { max-width:1080px; margin:0 auto; padding:0 32px; }
+.colophon-grid {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:48px;
+  margin-bottom:40px;
+}
+.col-section h6 {
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;
+  letter-spacing:0.22em;
+  text-transform:uppercase;
+  color:var(--gold-soft);
+  margin-bottom:14px;
+}
+.col-section p {
+  font-size:14px;
+  line-height:1.7;
+  color:rgba(239,232,214,0.65);
+  max-width:100%;
+}
+.col-section strong { color:var(--paper-deep); }
+.colophon-rule {
+  border:none;
+  border-top:1px solid rgba(239,232,214,0.12);
+  margin:0 0 20px;
+}
+.colophon-bottom {
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;
+  letter-spacing:0.1em;
+  color:rgba(239,232,214,0.35);
+  text-align:center;
+}
+
+/* BACK TO TOP */
+#back-top {
+  position:fixed; bottom:32px; right:32px;
+  width:46px; height:46px; border-radius:50%;
+  background:var(--cardinal);
+  border:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--paper); font-size:20px;
+  box-shadow:3px 3px 0 var(--ink);
+  transition:transform 0.2s ease, box-shadow 0.2s ease;
+  z-index:800;
+}
+#back-top:hover {
+  transform:translateY(-4px);
+  box-shadow:3px 7px 0 var(--ink);
+}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .hero-grid { grid-template-columns:1fr; gap:20px; }
+  .pillars { grid-template-columns:1fr; }
+  .duo { grid-template-columns:1fr; }
+  .colophon-grid { grid-template-columns:1fr; gap:28px; }
+  .container { padding:0 22px; }
+  h2 { font-size:32px; }
+  .stat-strip { flex-wrap:wrap; }
+  .stat-item { min-width:50%; }
+  .agent-loop { flex-direction:column; }
+  .loop-arrow { transform:rotate(90deg); }
+  .eval-row { grid-template-columns:120px 1fr 60px; }
+}
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div id="cursor"></div>
+
+<header class="masthead">
+  THE CLAUDE DISPATCH
+  <span>·</span> CODE WITH CLAUDE LONDON 2026
+  <span>·</span> VOL. I · NO. 22
+  <span>·</span> DAY 2 · 20 MAY 2026
+</header>
+
+<section class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div class="issue-stamp">№22<small>DAY 2</small></div>
+      <div>
+        <h1>The <em>Capability</em> Curve</h1>
+        <p class="deck">Jeremy（Anthropic PM）解析過去 12 個月 Claude 模型如何從初階助手躍升為自主工程智慧體——以及開發者如何乘浪而非被浪拍倒。</p>
+        <div class="byline">
+          <span>Jeremy · Anthropic PM, Coding Behaviors &amp; Capabilities</span>
+          <span class="byline-sep">·</span>
+          <span>Code with Claude London 2026 · Day 2</span>
+          <span class="byline-sep">·</span>
+          <span>Talk 22 of 24</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="stat-strip">
+  <div class="stat-item">
+    <span class="stat-num">60→87%</span>
+    <span class="stat-label">SWE-bench 12 個月進步</span>
+    <div class="stat-tooltip">Sonnet 3.7 達 60%，Opus 4.7 達 87%——解決問題數量提升三倍。</div>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">1 週</span>
+    <span class="stat-label">Bun 引擎 Rust 改寫時間</span>
+    <div class="stat-tooltip">Bun 創辦人讓 Claude Agent 自主運行一週，將整個 JS 引擎改寫為 Rust 並通過 100% 測試。</div>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">1M+</span>
+    <span class="stat-label">Token 連貫性窗口</span>
+    <div class="stat-tooltip">模型現可在百萬 Token 以上的長任務中保持主線連貫，告別「迷失主線」困境。</div>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">飽和</span>
+    <span class="stat-label">SWE-bench Verified 當前狀態</span>
+    <div class="stat-tooltip">Mythos Preview 已讓 SWE-bench 飽和——傳統基準無法再衡量最前沿模型進步。</div>
+  </div>
+</div>
+
+<nav class="nav-wrap" id="nav">
+  <button class="active" data-tab="0">I · 總覽</button>
+  <button data-tab="1">II · 三大技術支柱</button>
+  <button data-tab="2">III · 長時序智慧體</button>
+  <button data-tab="3">IV · 駕馭曲線</button>
+  <button data-tab="4">V · 思考題</button>
+  <div class="tab-indicator" id="tab-indicator"></div>
+</nav>
+
+<article>
+<div class="container">
+
+<!-- TAB I: 總覽 -->
+<div class="tab-content active" id="tab-0">
+
+  <section class="chapter">
+    <span class="roman">I</span>
+    <h2>電光石火的一年</h2>
+    <p class="lede">去年三月，Jeremy 加入 Anthropic 時，Opus 4 是最先進的模型，Claude Code 尚未正式發布，能力曲線還只是剛起步。今天，那個起點看起來已像史前時代。</p>
+    <p>Jeremy 在倫敦開場問了一個問題：「誰這週合併了一個完全由 Claude 撰寫、自己完全沒讀過的 PR？」幾乎一半的手舉了起來。這不是炫耀，而是警訊——技術地基正在快速移動，開發者必須重新學習如何站穩。</p>
+    <div class="pullquote">
+      <p><strong>"Opus 4 is a dinosaur, almost a distant memory, and models are so much better."</strong>
+      <span class="zh">「Opus 4 已成化石，幾乎是遙遠的記憶，而現在的模型遠遠更強。」</span></p>
+      <cite>— Jeremy, Anthropic PM</cite>
+    </div>
+    <p>Anthropic CEO Dario 已公開表示：Anthropic 絕大多數程式碼現在是由 Claude 撰寫，包括 Claude Code 自身的程式碼。我們正處在一個完全新的典範中——不是「AI 輔助寫程式」，而是「人類輔助 AI 寫程式」。</p>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂能力曲線</span>
+      <h5>什麼是「能力曲線（The Capability Curve）」？</h5>
+      <p>想像你每三個月收到一個更聰明的同事來幫你寫程式。這個同事不只變快，而是跳躍式地變聰明——從只能寫函式，到能規劃整個系統。能力曲線就是在描述這個加速提升的過程。</p>
+      <ul>
+        <li>一年前：Claude 能解決 60% 的標準 GitHub 問題</li>
+        <li>現在：Claude 能解決 87%，且最新模型讓標準測試完全飽和</li>
+        <li>對開發者的意義：你昨天認為 AI 做不到的事，今天可能已經做得到了</li>
+      </ul>
+      <p>所以「駕馭曲線（Ride the Curve）」的意思是：不要用舊眼光限制 AI 的野心。</p>
+    </aside>
+
+    <h3>10 個核心洞見</h3>
+    <div class="ledger">
+      <div class="ledger-item">
+        <span class="ledger-num">01</span>
+        <span class="ledger-text"><strong>SWE-bench 已被飽和</strong>：最前沿模型（Mythos Preview）讓業界最重要的軟體工程基準測試失去衡量意義——模型進步已超越了測試難度。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">02</span>
+        <span class="ledger-text"><strong>三大核心突破</strong>：自主規劃（Planning）、錯誤恢復（Error Recovery）、長文本專注力（Long-horizon Coherence）三者疊加，催生真正的自主智慧體。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">03</span>
+        <span class="ledger-text"><strong>告別 Doom Looping</strong>：模型遇到錯誤不再重複同樣失敗的嘗試，而是調用 Thinking Tokens 深度思考後換方向——這個困擾業界多年的問題已大體解決。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">04</span>
+        <span class="ledger-text"><strong>Bun Rust 改寫案例</strong>：Bun 創辦人（Anthropic 員工 Jared）不懂 Rust，讓 Claude Agent 自主運行一週，將整個引擎改寫為 Rust 並通過 100% 測試。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">05</span>
+        <span class="ledger-text"><strong>Evals 是競爭護城河</strong>：有完善評估體系的公司在新模型上線時可快速驗證收益；沒有的公司只能看 Twitter 猜測效果，慢上好幾週。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">06</span>
+        <span class="ledger-text"><strong>Frankenstein Prompt 是新型 Bug</strong>：模型越聰明，越會嚴格執行每條指令——過去為舊模型疊加的「科學怪人提示詞」會被新模型當成字面意思執行，製造新問題。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">07</span>
+        <span class="ledger-text"><strong>Auto Mode 分類器</strong>：不需要人類審核每一個工具調用——讓 AI 自行評估工具調用是否安全，只在關鍵變更時才引入人工確認。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">08</span>
+        <span class="ledger-text"><strong>閉環自我優化</strong>：讓 Claude Code 接入你的 Agent 系統，給它跑 Evals 的權限，它會自主改進 Prompt、工具設計——讓 AI 幫你優化 AI。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">09</span>
+        <span class="ledger-text"><strong>「Actually」時刻</strong>：新一代推理模型在思考過程中會自我糾錯，說「Actually」或「Never mind」後改變方向——這是 Test-Time Compute 的可觀察外在表現。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">10</span>
+        <span class="ledger-text"><strong>更有野心</strong>：不要在任務開始前就替 Claude 設限。以前做不到的長任務，現在交給 Claude 試試——你可能會被驚到。</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <span class="roman">I</span>
+    <h2>基準測試的意義與極限</h2>
+    <p>衡量 AI 進步的最佳工具是 <span class="term" data-def="SWE-bench Verified：由真實 GitHub issues 組成的軟體工程基準，測試模型能否解決問題並通過所有測試。">SWE-bench Verified</span>。這個測試用真實的 GitHub 問題衡量：模型能否解決問題並讓測試通過？</p>
+
+    <div class="benchmark-block">
+      <h4>SWE-bench Verified — 12 個月的飛躍</h4>
+      <div class="bench-row">
+        <span class="bench-label">Sonnet 3.7 (2025)</span>
+        <div class="bench-track"><div class="bench-fill" data-w="60"></div></div>
+        <span class="bench-pct">60%</span>
+      </div>
+      <div class="bench-row">
+        <span class="bench-label">Opus 4.7 (2026)</span>
+        <div class="bench-track"><div class="bench-fill gold" data-w="87"></div></div>
+        <span class="bench-pct">87%</span>
+      </div>
+      <div class="bench-row">
+        <span class="bench-label">Mythos Preview</span>
+        <div class="bench-track"><div class="bench-fill saturated" data-w="100"></div></div>
+        <span class="bench-pct">飽和</span>
+      </div>
+      <p class="bench-note">* 飽和（Saturated）= 無法再測出差異，基準本身已成為瓶頸</p>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂飽和問題</span>
+      <h5>為什麼「基準測試飽和」是個大問題？</h5>
+      <p>想像你拿一張高中數學考卷來測大學數學教授——他會考 100 分，但你無法分辨他有多厲害。SWE-bench 現在對最前沿模型就是這個情況。</p>
+      <ul>
+        <li>問題：舊 Eval 滿分了，不代表新模型沒進步，代表測試太簡單了</li>
+        <li>後果：公司誤判「新模型只進步 1%」，其實是 Eval 跟不上了</li>
+        <li>解法：不斷「調高難度」——把真實失敗案例加進 Eval</li>
+      </ul>
+      <p>Jeremy 提醒：必須隨模型演進不斷更新你的評估集，否則你的 Eval 就是在衡量昨天的問題。</p>
+    </aside>
+  </section>
+
+</div>
+
+<!-- TAB II: 三大技術支柱 -->
+<div class="tab-content" id="tab-1">
+
+  <section class="chapter">
+    <span class="roman">II</span>
+    <h2>第一支柱：自主規劃與推理</h2>
+    <p class="lede">以前模型像衝動的工程師直接動手——不看說明書就組 IKEA 家具。現在模型會先閱讀、先規劃，然後才動手。</p>
+    <p>Jeremy 用 IKEA 家具比喻完美描述了舊模型的症狀：<span class="term" data-def="先行動後思考（Act-then-Think）：舊模型在沒有充分規劃的情況下就開始執行，導致中途方向錯誤。">先行動後思考</span>。Sonnet 3.7 會拿到任務就開始寫程式，遇到問題才回頭看 spec，通常已經走錯方向。</p>
+
+    <div class="pullquote">
+      <p><strong>"You'll notice as the models reason through, they'll say things like 'actually' or 'never mind,' and change their approach as they're developing a plan."</strong>
+      <span class="zh">「你會注意到當模型在推理時，它們會說『事實上…』或『算了先這樣』，並在制定計畫的過程中改變方法。」</span></p>
+      <cite>— Jeremy</cite>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 Test-Time Compute</span>
+      <h5>什麼是 Test-Time Compute（推理期計算）？</h5>
+      <p>一般 AI 訓練完就固定了，但 Reasoning 模型可以在「回答你問題的那一刻」投入更多計算力思考。就像同一個人，時間充裕時能解更難的數學題。</p>
+      <ul>
+        <li>比喻：普通模型 = 限時考試；推理模型 = 開卷考試，你自己決定要想多久</li>
+        <li>代價：需要更多 Token，也花更多時間</li>
+        <li>適用場景：複雜的軟體工程、企業智慧體——值得投入更多思考</li>
+      </ul>
+      <p>Effort Parameter 越高 = 模型花更多計算力 = 更難的任務越有可能成功。</p>
+    </aside>
+
+    <p>新模型具備強大的 <span class="term" data-def="Test-Time Compute：模型在推理階段可調用的額外計算資源，讓模型在回應前有更多時間思考和規劃。">Test-Time Compute</span>，在行動前會自主閱讀規格、制定高成功率計畫，甚至在內省規劃時會自我糾錯。這讓開發者不再需要用繁複的 Prompt 強迫模型「先想清楚再動手」。</p>
+
+    <div class="duo">
+      <div class="duo-card">
+        <span class="tag">Sonnet 3.7 舊模式</span>
+        <h4>IKEA 衝動組裝法</h4>
+        <p>拿到任務立刻寫程式。遇到問題才回頭讀 spec。浪費時間在方向錯誤的程式碼上。</p>
+      </div>
+      <div class="duo-card">
+        <span class="tag">Opus 4.7 新模式</span>
+        <h4>資深工程師規劃法</h4>
+        <p>先讀完所有 spec。制定計畫，自我審查（「Actually…」）。帶著高成功率計畫才開始執行。</p>
+      </div>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 Adaptive Thinking</span>
+      <h5>什麼是 Adaptive Thinking（自適應思考）？</h5>
+      <p>讓模型自己決定要花多少時間思考——簡單問題快速回答，難問題深度推理。就像讓員工自行判斷一個任務值得花幾小時。</p>
+      <ul>
+        <li>不開啟：模型每次都用固定的思考深度，簡單任務浪費算力，難任務不夠用</li>
+        <li>開啟：模型自動校準，用合適的計算力解決每個問題</li>
+      </ul>
+      <p>對開發者的啟示：讓 Adaptive Thinking 開著，給模型空間自我校準。</p>
+    </aside>
+  </section>
+
+  <section class="chapter">
+    <span class="roman">II</span>
+    <h2>第二支柱：錯誤恢復與告別死循環</h2>
+    <p class="lede">Doom Looping——重複嘗試同樣失敗解法的死循環——曾是 AI Agent 最令人抓狂的問題。Jeremy 宣告：這個問題已大體解決。</p>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂死循環</span>
+      <h5>什麼是 Doom Looping（死循環）？</h5>
+      <p>想像你的同事遇到 bug，宣稱「我修好了！」，你一看 code——根本沒變。然後他再說一次「我修好了！」，還是沒變。這就是 Doom Looping。</p>
+      <ul>
+        <li>症狀：AI 說修好了 → 執行還是失敗 → AI 說修好了 → 執行還是失敗……</li>
+        <li>代價：浪費大量 Token，卻無法突破</li>
+        <li>舊的解法：開發者手動中斷，重新給指令</li>
+        <li>現在的解法：模型遇到失敗會調用 Thinking Tokens，真正換方向</li>
+      </ul>
+      <p>Jeremy 的說法：「我們已大體解決死循環問題。」這是 2025-2026 最重要的突破之一。</p>
+    </aside>
+
+    <div class="pullquote">
+      <p><strong>"We've sort of solved doom looping for the most part, because models are able to try a tool call, receive the results from the environment, use some thinking tokens, use some test-time compute to spend more computation and figure out how it should actually respond to that failure."</strong>
+      <span class="zh">「我們已大體解決死循環問題——模型現在能夠嘗試工具調用、從環境接收回傳結果，然後使用思維 Token 與 Test-Time Compute 來投入更多計算，進而搞懂該如何真正應對那個錯誤。」</span></p>
+      <cite>— Jeremy</cite>
+    </div>
+
+    <p>模型收到工具回傳的錯誤後，會啟動 <span class="term" data-def="Thinking Tokens：模型內部推理時消耗的 Token，用於深度思考而非直接回應，讓模型有時間「想清楚」再行動。">Thinking Tokens</span> 進行深度思考，而不是重複同樣的解法。結果是：Token 浪費大幅降低，任務完成率顯著提升。</p>
+
+    <div class="story">
+      <span class="story-tag">模型演進的見證</span>
+      <h4>同一個任務，12 個月後的驚人差距</h4>
+      <p>Jeremy 展示了一個實驗：給 Sonnet 4 和 Opus 4.7 相同的 Prompt——「一鍵重建整個 Claude.ai 網站」。</p>
+      <blockquote>Sonnet 4：寫了 2,000 行程式碼，UI 陽春，聊天功能完全失效，對話無法產生回應。</blockquote>
+      <blockquote>Opus 4.7：只用 1,700 行更精簡的程式碼，完美還原側邊欄、對話歷史、Canvas、Mermaid 圖表，聊天正常運作——還加了深色模式。</blockquote>
+      <p>Jeremy 笑說「它甚至加了深色模式，就像一個真正的工程師」。這不只是能力的進步，更是工程思維的進步——更少代碼、更完整功能、更主動的工程判斷。</p>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <span class="roman">II</span>
+    <h2>第三支柱：百萬 Token 的持續專注</h2>
+    <p class="lede">過去模型在處理大型代碼庫時會「迷失主線」。現在 Claude 可以在百萬 Token 的任務中保持高度前後連貫性。</p>
+    <p>一年前，如果你讓模型跨整個代碼庫做重構，消耗幾十萬 Token 後，它往往會忘記任務目標、遺漏重要細節，或無法遵循一開始的複雜規格。</p>
+    <p>現在，<span class="term" data-def="Long-horizon Coherence（長文本連貫性）：模型在極長的任務過程中保持對初始目標的記憶與一致性執行能力。">Long-horizon Coherence</span> 讓模型在 100 萬 Token 以上的任務中保持主線。這意味著開發者不再需要把任務切成細碎的小塊，也不需要每 20 萬 Token 就介入提醒模型它在做什麼。</p>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂長文本連貫性</span>
+      <h5>為什麼「迷失主線」是個嚴重問題？</h5>
+      <p>想像你給一個工讀生一份 50 頁的工作說明，讓他做一個月的專案。半途他忘了第 12 頁的重要限制，結果整個方向錯了。這就是模型「迷失主線（Lose the Plot）」。</p>
+      <ul>
+        <li>以前的症狀：規格文件有 30 條規定，跑到一半只記得前 5 條</li>
+        <li>現在的能力：規格文件全部都記得，100 萬 Token 跑完還沒忘</li>
+        <li>對開發者的意義：可以把整個代碼庫一次給 Claude，讓它自己找相關的部分</li>
+      </ul>
+      <p>Jeremy 的建議：「不要替 Claude 設限。把整個代碼庫給它，看它能做什麼。」</p>
+    </aside>
+
+    <div class="pillars">
+      <div class="pillar">
+        <span class="pillar-icon">🧠</span>
+        <h4>Planning</h4>
+        <p>先讀規格、制定計畫、自我審查後再動手</p>
+      </div>
+      <div class="pillar">
+        <span class="pillar-icon">🔄</span>
+        <h4>Error Recovery</h4>
+        <p>遇到失敗會思考換方向，不重複死循環</p>
+      </div>
+      <div class="pillar">
+        <span class="pillar-icon">🎯</span>
+        <h4>Long-horizon</h4>
+        <p>百萬 Token 任務中持續記住目標與細節</p>
+      </div>
+    </div>
+
+    <p>三大支柱疊加的結果：真正意義上的<strong>長時序自主智慧體（Long-horizon Autonomous Agents）</strong>——能執行跨數小時、橫跨整個代碼庫的複雜任務，過去需要多人團隊幾週才能完成的工作。</p>
+  </section>
+
+</div>
+
+<!-- TAB III: 長時序智慧體 -->
+<div class="tab-content" id="tab-2">
+
+  <section class="chapter">
+    <span class="roman">III</span>
+    <h2>長時序智慧體的工作方式</h2>
+    <p class="lede">當規劃、錯誤恢復、長文本連貫性三者合一，Claude 可以「長跑」——數小時的端對端任務，只需要人類在關鍵節點做確認。</p>
+
+    <p>Jeremy 描述了長時序智慧體的典型循環：從計畫開始，執行，用環境驗證（跑測試），如果測試不通過則迭代，每隔一段時間對比目標——持續運行，不需要持續人工介入。</p>
+
+    <div class="agent-loop">
+      <div class="loop-node highlight">🎯 制定計畫</div>
+      <span class="loop-arrow">→</span>
+      <div class="loop-node">⚡ 執行任務</div>
+      <span class="loop-arrow">→</span>
+      <div class="loop-node">🧪 驗證環境</div>
+      <span class="loop-arrow">→</span>
+      <div class="loop-node">❌ 處理失敗</div>
+      <span class="loop-arrow">→</span>
+      <div class="loop-node highlight">✅ 目標達成</div>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂長時序智慧體</span>
+      <h5>什麼是 Long-horizon Agent（長時序智慧體）？</h5>
+      <p>普通 AI 助手就像叫外賣——你說要什麼，它給你什麼，一次性的。長時序智慧體更像一個自主工作幾天的工讀生——你給它目標，它自己規劃、執行、遇到問題自己解決，偶爾向你確認關鍵決定。</p>
+      <ul>
+        <li>舊模式：AI 做一步，你確認，AI 再做一步，你再確認……</li>
+        <li>新模式：給 AI 一個目標 + 測試套件，讓它自主執行直到測試全通過</li>
+        <li>關鍵要素：好的驗證環境（測試）+ 清楚的目標 + 允許模型自主運行</li>
+      </ul>
+      <p>長時序智慧體讓一個人能完成過去需要一個小團隊才能做的專案。</p>
+    </aside>
+  </section>
+
+  <section class="chapter">
+    <span class="roman">III</span>
+    <h2>傳奇案例：Bun 引擎一週 Rust 改寫</h2>
+    <p class="lede">一個不懂 Rust 的工程師，讓 Claude Agent 自主運行一週，把整個 JavaScript 引擎改寫為 Rust，通過近 100% 的測試套件——然後合併了 PR。</p>
+
+    <div class="story">
+      <span class="story-tag">長時序智慧體的極致展示</span>
+      <h4>Jared 的一週冒險：不懂 Rust，卻讓 Bun 成為 Rust 引擎</h4>
+      <p>Bun 的創辦人 Jared（現為 Anthropic 員工）有一天厭倦了 JavaScript 引擎的記憶體錯誤。他問自己：「如果我把整個 Bun 引擎改寫成 Rust，這些問題就消失了——但我不懂 Rust。」</p>
+      <blockquote>"Because Bun has a great test suite with nearly 100% coverage of the entire engine, he was able to get Claude to run over the course of an entire week."</blockquote>
+      <blockquote>「因為 Bun 擁有近乎 100% 覆蓋率的完整測試套件，他能讓 Claude 持續運行整整一週。」</blockquote>
+      <p>Jared 把 Claude Agent 接上 Bun 的測試套件，給了指令，然後讓 Agent 自主工作。Agent 不斷根據測試失敗的報錯修正程式碼，反覆迭代，在一週內將整個引擎改寫為 Rust 並通過測試——然後 Jared 合併了這個 PR。現在的 Bun 引擎是 Rust 寫的。</p>
+      <p>這個案例的啟示：<strong>好的測試套件是 AI 自主開發的燃料。</strong>沒有 100% 覆蓋率的測試，Jared 就無法信任 Claude 的工作。測試品質決定了 AI 能夠有多自主。</p>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂為什麼測試如此關鍵</span>
+      <h5>為什麼測試套件是 AI 自主開發的關鍵？</h5>
+      <p>沒有測試，AI 就像在黑暗中摸索——它不知道自己改對了沒有。有完整的測試套件，AI 就有了清晰的成功標準：「測試全過 = 任務完成。」</p>
+      <ul>
+        <li>Jared 能讓 Claude 自主一週的前提：Bun 擁有近 100% 測試覆蓋率</li>
+        <li>如果測試不完整：AI 可能「通過測試」但破壞了未被測試的功能</li>
+        <li>教訓：想讓 AI 更自主，先讓你的測試更完整</li>
+      </ul>
+      <p>Jeremy 說：「給 Claude 能驗證整個軟體系統的東西，它能做的事是不可思議的。」</p>
+    </aside>
+
+    <h3>來自真實客戶的驗證</h3>
+    <div class="duo">
+      <div class="duo-card">
+        <span class="tag">Vercel 案例</span>
+        <h4>系統證明先於執行</h4>
+        <p>Vercel 觀察到模型在開始任務前，會主動對系統程式碼進行形式驗證（Proof），確保架構正確後才動手。這是「Planning」支柱的極致體現。</p>
+      </div>
+      <div class="duo-card">
+        <span class="tag">Windsurf 案例</span>
+        <h4>最長智慧體任務市場領先</h4>
+        <p>Windsurf 發現 Claude 在最長的智慧體任務中，持續推理的連貫性達到市場領先水準，能在數小時的任務中持續不迷失。</p>
+      </div>
+    </div>
+    <div class="duo">
+      <div class="duo-card">
+        <span class="tag">Shopify 案例</span>
+        <h4>Opus 4.7 的代碼質量躍升</h4>
+        <p>Shopify 表示 Opus 4.7 在「邊工作邊驗證、邊執行邊修正」上是一次重大飛躍——智慧體不需要等到最後才確認結果，而是持續驗證中間步驟。</p>
+      </div>
+      <div class="duo-card">
+        <span class="tag">12 個月對比</span>
+        <h4>Claude.ai 網站重建實驗</h4>
+        <p>同樣 Prompt：Sonnet 4 → 2000 行、聊天失效。Opus 4.7 → 1700 行、完整功能、深色模式。更少程式碼，更多功能，更像資深工程師。</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- TAB IV: 駕馭曲線 -->
+<div class="tab-content" id="tab-3">
+
+  <section class="chapter">
+    <span class="roman">IV</span>
+    <h2>策略一：建立真正有用的 Evals</h2>
+    <p class="lede">Evals（評估體系）是 AI 時代的單元測試——沒有 Evals 就像軟體工程師不寫測試，你根本不知道自己的應用是否正常運作。</p>
+
+    <div class="pullquote">
+      <p><strong>"Evaluations are just the unit tests and the regression tests of the AI era."</strong>
+      <span class="zh">「評估就是 AI 時代的單元測試與回歸測試。」</span></p>
+      <cite>— Jeremy</cite>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 Evals</span>
+      <h5>什麼是 AI Evals（評估體系）？</h5>
+      <p>就像軟體有單元測試，AI 應用也需要「Evals」——一套測試題，評估 AI 在你的實際使用場景中表現得好不好。</p>
+      <ul>
+        <li>Evals ≠ 學術基準（SWE-bench、MMLU）：那些是通用測試，不是你的場景</li>
+        <li>好的 Evals = 來自真實用戶失敗案例 + 你實際關心的任務</li>
+        <li>例子：如果你做金融 Agent，就收集用戶真正搞錯的財務問題來當測試</li>
+      </ul>
+      <p>有 Evals 的公司在新模型上線時，一個腳本就知道新模型好不好用；沒有的公司只能靠感覺。這是競爭護城河。</p>
+    </aside>
+
+    <div class="eval-block">
+      <h4>Evals 完善度與新模型適應速度的關係</h4>
+      <div class="eval-row">
+        <span class="eval-label">無 Evals</span>
+        <div class="eval-track"><div class="eval-fill c1" data-w="15"></div></div>
+        <span class="eval-amt">靠感覺</span>
+      </div>
+      <div class="eval-row">
+        <span class="eval-label">學術基準 Evals</span>
+        <div class="eval-track"><div class="eval-fill c1" data-w="35"></div></div>
+        <span class="eval-amt">中低準確</span>
+      </div>
+      <div class="eval-row">
+        <span class="eval-label">真實場景 Evals</span>
+        <div class="eval-track"><div class="eval-fill c2" data-w="70"></div></div>
+        <span class="eval-amt">高準確</span>
+      </div>
+      <div class="eval-row">
+        <span class="eval-label">動態更新 Evals</span>
+        <div class="eval-track"><div class="eval-fill c3" data-w="95"></div></div>
+        <span class="eval-amt">最優</span>
+      </div>
+    </div>
+
+    <h3>三個 Evals 常見陷阱</h3>
+    <div class="ledger">
+      <div class="ledger-item">
+        <span class="ledger-num">❌</span>
+        <span class="ledger-text"><strong>用學術基準代替真實 Evals</strong>：SWE-bench、MMLU 是通用測試，無法反映你的應用場景。金融 Agent 應該用真實財務問題測試，不是程式碼問題。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">❌</span>
+        <span class="ledger-text"><strong>Eval 飽和後不更新</strong>：當新模型只進步「1%」時，可能是你的 Eval 太容易了，不是模型沒進步。必須持續「調高難度」。</span>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-num">❌</span>
+        <span class="ledger-text"><strong>因為「麻煩」就不做 Evals</strong>：很多團隊認為 Evals 是研究員的工作。Jeremy 反駁：就像開發者不會說「單元測試太麻煩了，我不寫」——開始就行了。</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <span class="roman">IV</span>
+    <h2>策略二：精簡你的 Frankenstein Prompt</h2>
+    <p class="lede">模型越聰明，越嚴格執行每條指令。過去為舊模型缺陷疊加的複雜提示詞，在新模型手中會變成 Bug 的溫床。</p>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 Frankenstein Prompt</span>
+      <h5>什麼是 Frankenstein Prompt（科學怪人提示詞）？</h5>
+      <p>想像一份工作說明書，被不同的前任主管反覆修改了三年。每次 AI 出現問題，就加一條「千萬不要做 X」，結果變成一個充滿矛盾、前後不一致的龐大文件。新員工（新模型）看完這份說明書會完全搞混。</p>
+      <ul>
+        <li>症狀：Prompt 超過 1000 行，充滿「因為之前 Claude 會 XXX 所以加了這條」</li>
+        <li>新問題：新模型會嚴格執行每一條，包括那些舊的、不再有效的指令</li>
+        <li>案例：Jeremy 的 Claude.ai 引用格式 bug——舊格式範例留在 Prompt 裡，新模型嚴格照做，產出錯誤格式</li>
+      </ul>
+      <p>解法：定期「大掃除」，把只為舊模型弱點存在的指令全部刪掉，精簡到真正的需求。</p>
+    </aside>
+
+    <div class="story">
+      <span class="story-tag">Claude.ai 引用格式 Bug 事件</span>
+      <h4>當新模型太「聽話」反而製造問題</h4>
+      <p>Jeremy 在準備 Claude 4 上線、調整 Claude.ai 應用程式時，發現一個奇怪的問題：輸出的引用格式全錯了。</p>
+      <blockquote>"The model was following instructions more effectively than previous ones. And there were pieces of the Claude.ai prompt that it was following that we didn't even expect it to follow."</blockquote>
+      <blockquote>「模型執行指令的效率比以前更高，甚至去執行了某些我們壓根沒預期它會去執行的提示詞片段。」</blockquote>
+      <p>原來 Prompt 裡有一個舊版引用格式的範例，這個格式早就廢棄了，但一直沒清掉。新模型太「聽話」，嚴格按照這個舊範例輸出，反而產出了錯誤格式。</p>
+      <p>修法：<strong>只是拿掉那個舊範例，微調幾個字。</strong>整類問題消失。教訓：Prompt 裡的每個字都是對模型的指令，不再有效的指令要刪掉。</p>
+    </div>
+
+    <div class="pullquote">
+      <p><strong>"When you get a new model, you want to cut down your prompt, figure out what's not necessary anymore, and describe what you actually intend for your application."</strong>
+      <span class="zh">「拿到新模型時，你要削減 Prompt，找出什麼已不再必要，描述你的應用真正的意圖——而不是堆疊應付舊模型弱點的 workaround。」</span></p>
+      <cite>— Jeremy</cite>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <span class="roman">IV</span>
+    <h2>策略三：給模型空間工作</h2>
+    <p class="lede">不要替 Claude 設限。允許它思考、允許它自主運行、允許它在你的系統中閉環優化自己。</p>
+
+    <div class="strategy-stack">
+      <div class="stack-item">
+        <span class="stack-num">I</span>
+        <div class="stack-body">
+          <h4>開啟 Adaptive Thinking，調高 Effort</h4>
+          <p>對複雜的軟體工程任務，將 Effort Parameter 調至最高。讓模型自己決定要花多少時間思考。不要追求「最快回應」——追求「最好結果」。</p>
+        </div>
+      </div>
+      <div class="stack-item">
+        <span class="stack-num">II</span>
+        <div class="stack-body">
+          <h4>引入 Auto Mode 分類器</h4>
+          <p>不需要人類審核每一個工具調用。建立類似 Claude Code 的 Auto Mode：AI 評估每個工具調用是否安全，一般操作自動放行，僅在危險變更時引入人工審查。</p>
+        </div>
+      </div>
+      <div class="stack-item">
+        <span class="stack-num">III</span>
+        <div class="stack-body">
+          <h4>閉合智慧體循環（Close the Agent Loop）</h4>
+          <p>讓 Claude Code 接入你的 Agent 系統，給它跑 Evals 的權限。它會自主讀懂你的代碼、運行測試、修改 Prompt——讓 AI 幫你優化 AI，達到自我提升的閉環。</p>
+        </div>
+      </div>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 Auto Mode 分類器</span>
+      <h5>什麼是 Auto Mode 分類器？</h5>
+      <p>給每個工具調用打分：「這個操作安全嗎？」如果安全（如讀取文件），自動執行；如果危險（如刪除生產資料庫），才停下來問你。</p>
+      <ul>
+        <li>沒有 Auto Mode：每個操作都問你確認 → AI 每兩分鐘打擾你一次 → 你沒法去做別的事</li>
+        <li>有 Auto Mode：安全操作自動過，危險操作才通知你 → 你可以完全放手讓它跑幾小時</li>
+        <li>Anthropic 內部：幾乎所有軟體工程師都在用 Auto Mode 讓 Claude 自主工作</li>
+      </ul>
+      <p>你可以把 Auto Mode 的邏輯應用到你自己的應用中，實現更高程度的自主運行。</p>
+    </aside>
+
+    <div class="pullquote">
+      <p><strong>"If you can give Claude the ability to iterate on your own system, then you can sort of get to the point where you're almost self-improving."</strong>
+      <span class="zh">「如果你能給 Claude 迭代你自己系統的能力，你就能達到近乎自我提升的境界。」</span></p>
+      <cite>— Jeremy</cite>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂閉合智慧體循環</span>
+      <h5>什麼是 Close the Agent Loop（閉合智慧體循環）？</h5>
+      <p>讓 AI 幫你優化 AI 的工作——就像讓一個工程師讀完你的所有測試報告，然後建議如何改進程式碼，而這個工程師本身就是 AI。</p>
+      <ul>
+        <li>第一層：Claude 幫你寫程式（普通 Copilot 模式）</li>
+        <li>第二層：Claude 幫你改進讓 Claude 寫更好程式的環境（Meta 優化）</li>
+        <li>實作：把 Claude Code 接入你的 Agent 系統 → 讓它跑 Evals → 讓它自己改 Prompt → 看分數提升</li>
+      </ul>
+      <p>這是 AI 開發的終極型態：不只是使用 AI，而是讓 AI 自我演進。</p>
+    </aside>
+
+    <h3>四大策略總覽</h3>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>策略</th>
+          <th>核心動作</th>
+          <th>競爭優勢</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>評估體系</td>
+          <td>建立真實場景 Evals，持續調高難度</td>
+          <td class="good">新模型上線速度快 3-4 週</td>
+        </tr>
+        <tr>
+          <td>精簡腳手架</td>
+          <td>刪除舊模型 workaround，回到 bare minimum</td>
+          <td class="good">解鎖新模型真實能力</td>
+        </tr>
+        <tr>
+          <td>自主空間</td>
+          <td>Adaptive Thinking + Auto Mode 分類器</td>
+          <td class="good">開發者可做更高價值工作</td>
+        </tr>
+        <tr>
+          <td>閉合循環</td>
+          <td>讓 Claude 接入系統，自主跑 Evals 並優化</td>
+          <td class="good">系統自我提升，近乎自動化</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+</div>
+
+<!-- TAB V: 思考題 -->
+<div class="tab-content" id="tab-4">
+
+  <section class="chapter">
+    <span class="roman">V</span>
+    <h2>思考題 · 六個值得深想的問題</h2>
+    <p class="lede">Jeremy 的演講挑戰了很多開發者的舊有假設。這六個問題沒有標準答案，但認真想過之後，你對 AI 開發的判斷力會顯著提升。</p>
+
+    <div class="discuss" data-q="Q1">
+      <p>Q1 · Jeremy 說 SWE-bench Verified 已被「飽和」——最前沿模型讓這個最重要的基準失去意義。如果模型進步的速度永遠快於基準測試的更新速度，我們該怎麼持續衡量 AI 的真實能力？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>歷史對照：</strong>圍棋的 Elo 系統最終也「飽和」了，解決方案是 AI 自弈（AlphaGo → AlphaZero）。AI 能力評估是否也需要「AI 對 AI」的動態基準？</li>
+          <li><strong>講者隱含論點：</strong>Jeremy 暗示基準飽和問題要靠「真實場景 Evals」而非更難的學術基準解決——因為學術基準永遠落後於真實需求。</li>
+          <li><strong>職涯啟發：</strong>如果你建立了一套優質的真實場景 Evals，你就擁有其他公司沒有的能力感知器——這是護城河。</li>
+          <li><strong>反向思考：</strong>也許「衡量能力」本身就是錯誤的框架——也許問題應該是「哪些任務已能自動化」，而不是「模型得了幾分」。</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss" data-q="Q2">
+      <p>Q2 · Bun Rust 改寫案例之所以成功，前提是 Bun 已有近 100% 的測試覆蓋率。這意味著「測試品質」將成為 AI 自主開發能力的上限。你的代碼庫有多少測試覆蓋率？這個比例如何影響你現在能讓 Claude 做什麼？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>歷史對照：</strong>Google 工程文化強調測試覆蓋率已超過 20 年。現在看來，這不只是工程品質問題，更是 AI 可自主化程度的基礎設施。</li>
+          <li><strong>講者隱含論點：</strong>Jeremy 說「給 Claude 能驗證整個系統的東西，它能做的事是不可思議的」——測試套件就是 AI 的感知系統。</li>
+          <li><strong>職涯啟發：</strong>提升測試覆蓋率不只是工程師的傳統美德，而是讓你能更好使用 AI 工具的直接投資——ROI 在 2026 年已大幅提升。</li>
+          <li><strong>反向思考：</strong>如果測試覆蓋率低的舊代碼庫難以讓 AI 自主操作，這是否會加速「重寫舊系統」的商業動機？舊技術債是否有新的清償方式？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss" data-q="Q3">
+      <p>Q3 · Jeremy 提出「Frankenstein Prompt」問題——模型越聰明，越嚴格執行每條指令，導致舊 Prompt 積累的 workaround 變成 Bug。你現在最重要的一個 Prompt 有多長？裡面有多少是為了修補以前模型的缺陷而加的？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>量化參考：</strong>Jeremy 提到「3000 行」的 Prompt 並不罕見。如果你的 Prompt 超過 500 行，可能有相當比例已不再必要。</li>
+          <li><strong>講者隱含論點：</strong>Prompt 工程有「技術債」——每次「快速修補」就是一行不透明的指令。新模型上線是清償這種技術債的最佳時機。</li>
+          <li><strong>職涯啟發：</strong>能夠系統性審計並精簡 Prompt 的工程師，將在 AI 產品迭代速度上遠超只會「加指令」的工程師。這是一種需要訓練的能力。</li>
+          <li><strong>反向思考：</strong>「精簡」和「保留必要規則」之間的邊界在哪裡？如何用 Evals 驗證一條指令是否可以安全刪除？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss" data-q="Q4">
+      <p>Q4 · Jeremy 說「閉合智慧體循環」——讓 Claude 接入你的 Agent 系統，讓它自主改進 Prompt 和工具設計。這種「AI 優化 AI」的閉環有什麼潛在風險？應該設置哪些防護機制？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>歷史對照：</strong>Google DeepMind 的 AlphaCode 已能自主生成程式碼並驗證。但「自我優化的系統」在 AI Safety 社群一直是重要研究課題——目標漂移（Reward Hacking）是已知風險。</li>
+          <li><strong>講者隱含論點：</strong>Jeremy 說要「在受控的方式下讓模型自主」——他預設了 Evals 是防護機制，但 Evals 本身也可能被「遊戲」（teaching to the test）。</li>
+          <li><strong>職涯啟發：</strong>AI 系統設計師需要同時思考「讓系統更強大」和「讓系統更可控」——這兩件事有時對立，找到平衡是核心能力。</li>
+          <li><strong>反向思考：</strong>完全閉合的自我優化循環在理論上是終極效率，但人類如何維持對系統行為的理解和監督？「可解釋性」在閉環系統中變得更還是更難？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss" data-q="Q5">
+      <p>Q5 · Jeremy 展示 Opus 4.7 重建 Claude.ai 網站比 Sonnet 4 用了更少程式碼（1700 vs 2000 行），卻做出更多功能。這說明了什麼？「程式碼行數」作為工程生產力的衡量指標，在 AI 時代還有意義嗎？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>歷史對照：</strong>Bill Gates 曾說「衡量程式設計進度用程式碼行數，就像衡量飛機製造進度用重量」。AI 時代的「生產力」應該怎麼定義？</li>
+          <li><strong>講者隱含論點：</strong>Jeremy 特意提到 1700 < 2000 這個數字，強調「更少代碼 + 更多功能 = 更聰明的工程判斷」。新模型不只是快，而是有更好的抽象能力。</li>
+          <li><strong>職涯啟發：</strong>如果 AI 能生成更精簡的程式碼，人類工程師的價值是什麼？可能是「設計更清晰的需求」和「維護代碼庫的可測試性」——這兩件事都比「寫程式碼」更重要了。</li>
+          <li><strong>反向思考：</strong>更精簡的程式碼是否更難維護？AI 生成的「優雅」程式碼對人類的可讀性是否有影響？</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="discuss" data-q="Q6">
+      <p>Q6 · Jeremy 說「能力曲線不是關於任何單一模型，而是整個軌跡——地基在我們腳下持續移動」。這對你的開發策略有什麼意義？你現在的架構設計能否輕鬆換掉底層的 AI 模型？</p>
+      <details>
+        <summary>查看建議思考方向</summary>
+        <ul>
+          <li><strong>歷史對照：</strong>智慧手機時代的 app 設計師：在 iPhone 4 時代為「低效能」設計，反而在 iPhone X 時代被自我限制。類比：今天為「不夠聰明的 AI」設計的 scaffolding，明天可能成為瓶頸。</li>
+          <li><strong>講者隱含論點：</strong>Jeremy 說「每隔幾個月模型就顯著更聰明」——這暗示了「模型無關性（Model-agnostic）架構設計」是未來的最佳實踐。</li>
+          <li><strong>職涯啟發：</strong>擁有強大 Evals 的公司可以在幾天內切換到更強模型，並立即驗證收益。沒有 Evals 的公司需要幾個月的人工測試。這是 2026 年最重要的工程能力差距之一。</li>
+          <li><strong>反向思考：</strong>如果模型每幾個月就大幅升級，過度投資「讓舊模型做得更好」的 Prompt Engineering 是否是錯誤策略？也許更值得投資的是「讓系統更容易換模型」？</li>
+        </ul>
+      </details>
+    </div>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 Effort Parameter</span>
+      <h5>什麼是 Effort Parameter（努力參數）？</h5>
+      <p>就像滑桿一樣，從 0（快速回應）到 1（最大思考）。你可以控制模型「願意花多少時間思考」。</p>
+      <ul>
+        <li>Effort 低 = 快速但可能不夠深思熟慮（適合簡單問答）</li>
+        <li>Effort 高 = 慢但思考更深（適合複雜軟體工程、企業 Agent）</li>
+        <li>Jeremy 的建議：對智慧敏感型用例（軟體工程、企業決策），調到最高</li>
+      </ul>
+      <p>代價：更多 Token 費用。但對於一個能在一週內改寫整個引擎的 Agent，這個代價通常是值得的。</p>
+    </aside>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 一句話搞懂 Scaffolding</span>
+      <h5>什麼是 Scaffolding（腳手架）？</h5>
+      <p>建築蓋好後要拆掉的外部支撐結構。在 AI 開發中，Scaffolding 是圍繞核心 LLM 的所有「輔助結構」——Prompt、工具、執行環境、額外指令——幫助舊模型做到它本來做不到的事。</p>
+      <ul>
+        <li>當模型更聰明：很多舊的 Scaffolding 就不再需要了</li>
+        <li>問題：工程師常常忘了拆，Scaffolding 越加越多，變成 Frankenstein</li>
+        <li>最佳實踐：每次模型升級，先試著把 Scaffolding 削到最少，再用 Evals 確認不影響表現</li>
+      </ul>
+      <p>Jeremy 的核心訊息：模型越強，你需要的 Scaffolding 越少——這是進步的標誌，不是退步。</p>
+    </aside>
+
+    <aside class="primer">
+      <span class="primer-tag">給初學者 · 名詞速查</span>
+      <h5>本場演講關鍵術語</h5>
+      <ul>
+        <li><strong>SWE-bench Verified</strong>：軟體工程能力基準，用真實 GitHub issues 測試</li>
+        <li><strong>Doom Looping</strong>：模型重複嘗試同樣失敗解法的死循環</li>
+        <li><strong>Test-Time Compute</strong>：模型在推理時可調用的額外計算資源</li>
+        <li><strong>Long-horizon Coherence</strong>：百萬 Token 長任務中的目標連貫性</li>
+        <li><strong>Frankenstein Prompt</strong>：為舊模型缺陷疊加的複雜、矛盾提示詞</li>
+        <li><strong>Auto Mode Classifier</strong>：判斷工具調用安全性的分類器，安全則自動執行</li>
+        <li><strong>Evals</strong>：AI 應用的評估體系，等同於 AI 時代的單元測試</li>
+        <li><strong>Scaffolding</strong>：圍繞 LLM 的輔助結構（Prompt、工具、環境）</li>
+      </ul>
+    </aside>
+  </section>
+
+</div>
+
+</div><!-- container -->
+</article>
+
+<footer class="colophon">
+  <div class="container">
+    <div class="colophon-grid">
+      <div class="col-section">
+        <h6>Conference</h6>
+        <p><strong>Code with Claude London 2026</strong><br>
+        Anthropic Developer Conference<br>
+        May 19–20, 2026 · London<br>
+        Anthropic</p>
+      </div>
+      <div class="col-section">
+        <h6>This Talk</h6>
+        <p><strong>Talk 22 of 24 · Day 2</strong><br>
+        The Capability Curve<br>
+        Jeremy · Anthropic PM<br>
+        Coding Behaviors &amp; Capabilities</p>
+      </div>
+      <div class="col-section">
+        <h6>This Issue</h6>
+        <p>13 primers · 3 stories<br>
+        6 guided questions · 4 strategies<br>
+        3 interactive visuals<br>
+        Benchmark · Pillars · Loop</p>
+      </div>
+    </div>
+    <hr class="colophon-rule">
+    <p class="colophon-bottom">© The Claude Dispatch · Set in Fraunces, Newsreader &amp; JetBrains Mono · 13 primers · 3 stories · 6 guided questions</p>
+  </div>
+</footer>
+
+<button id="back-top" title="回到頂部">↑</button>
+
+<script>
+// Progress bar
+const pb = document.getElementById('progress-bar');
+document.addEventListener('scroll', () => {
+  const h = document.documentElement;
+  pb.style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%';
+});
+
+// Cursor follower
+const cursor = document.getElementById('cursor');
+if ('ontouchstart' in window) {
+  cursor.style.display = 'none';
+} else {
+  document.addEventListener('mousemove', e => {
+    cursor.style.left = e.clientX + 'px';
+    cursor.style.top = e.clientY + 'px';
+  });
+  document.querySelectorAll('a,button,.duo-card,.ledger-item,.stack-item,.pillar,.loop-node').forEach(el => {
+    el.addEventListener('mouseenter', () => cursor.classList.add('big'));
+    el.addEventListener('mouseleave', () => cursor.classList.remove('big'));
+  });
+}
+
+// Tab switching with sliding indicator
+const tabs = document.querySelectorAll('.nav-wrap button');
+const contents = document.querySelectorAll('.tab-content');
+const indicator = document.getElementById('tab-indicator');
+const nav = document.getElementById('nav');
+
+function setIndicator(tab) {
+  const rect = tab.getBoundingClientRect();
+  const navRect = nav.getBoundingClientRect();
+  indicator.style.left = (rect.left - navRect.left + nav.scrollLeft) + 'px';
+  indicator.style.width = rect.width + 'px';
+}
+
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    contents.forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    setIndicator(tab);
+    setTimeout(() => revealVisible(), 100);
+    setTimeout(() => animateBars(), 200);
+  });
+});
+
+window.addEventListener('load', () => {
+  const active = document.querySelector('.nav-wrap button.active');
+  if (active) setIndicator(active);
+});
+window.addEventListener('resize', () => {
+  const active = document.querySelector('.nav-wrap button.active');
+  if (active) setIndicator(active);
+});
+
+// Scroll reveal
+const revealObs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('revealed'); });
+}, { threshold: 0.08 });
+document.querySelectorAll('.chapter').forEach(el => revealObs.observe(el));
+
+function revealVisible() {
+  document.querySelectorAll('.chapter:not(.revealed)').forEach(el => {
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight) el.classList.add('revealed');
+  });
+}
+
+// Bar animation
+function animateBars() {
+  document.querySelectorAll('.bench-fill[data-w], .eval-fill[data-w]').forEach(el => {
+    const parent = el.closest('.tab-content');
+    if (parent && parent.classList.contains('active')) {
+      el.style.width = el.dataset.w + '%';
+    }
+  });
+}
+
+const barObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const fills = e.target.querySelectorAll('.bench-fill[data-w], .eval-fill[data-w]');
+      fills.forEach(el => { el.style.width = el.dataset.w + '%'; });
+    }
+  });
+}, { threshold: 0.3 });
+document.querySelectorAll('.benchmark-block, .eval-block').forEach(el => barObs.observe(el));
+
+// Back to top
+document.getElementById('back-top').addEventListener('click', () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+// Initial reveals
+setTimeout(() => { revealVisible(); animateBars(); }, 300);
+</script>
+<style>#home-btn{position:fixed;bottom:32px;left:32px;width:44px;height:44px;border-radius:50%;background:var(--cardinal,#8c1515);color:var(--paper,#efe8d6);display:flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:3px 3px 0 var(--ink,#1a1410);z-index:901;font-size:20px;transition:transform .2s;}#home-btn:hover{transform:translateY(-4px);}#home-btn::after{content:'';position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;color:var(--ink-faint,#7a6651);opacity:0;transition:opacity .2s;}#home-btn:hover::after{content:'HOME';opacity:1;}</style>
+<a id='home-btn' href='./index.html' title='Back to Index'>&#8962;</a></body>
+</html>
