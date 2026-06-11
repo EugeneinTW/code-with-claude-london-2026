@@ -96,10 +96,11 @@ tr:last-child td{border-bottom:none}
 .glossary{background:var(--navy);color:#dfe3f0;padding:42px;margin:40px 0;border-radius:6px}
 .glossary h2{color:#fff;margin-bottom:24px}
 .glossary .sec-num{color:#e9a48c}
-.glossary dl{display:grid;grid-template-columns:1fr;gap:0}
-@media(min-width:680px){.glossary dl{grid-template-columns:1fr 1fr;gap:0 36px}}
-.glossary dt{font-family:'JetBrains Mono',monospace;font-weight:600;color:#f0b9a2;margin-top:16px;font-size:15px}
-.glossary dd{font-size:14px;line-height:1.75;color:#bfc6dd}
+.glossary .g-grid{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:680px){.glossary .g-grid{grid-template-columns:1fr 1fr;gap:14px 22px}}
+.g-item{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);border-left:3px solid #e9a48c;border-radius:6px;padding:14px 18px}
+.g-term{font-family:'JetBrains Mono',monospace;font-weight:600;color:#f0b9a2;font-size:15px;margin-bottom:6px}
+.g-def{font-size:14px;line-height:1.75;color:#bfc6dd}
 
 /* ---------- think ---------- */
 .think{border:2px solid var(--accent);padding:26px 30px;margin:30px 0;border-radius:6px;background:#fff}
@@ -639,22 +640,22 @@ def delete_session(session_id: str) -> None:
   <div class="glossary">
     <div class="sec-num">APPENDIX</div>
     <h2 class="serif">名詞速查表</h2>
-    <dl>
-      <dt>Managed Agents（CMA）</dt><dd>讓 Claude 以自主 Agent 形式跑在 Anthropic 受管基礎設施上的一組可組合 API。Beta header：managed-agents-2026-04-01。</dd>
-      <dt>Harness</dt><dd>包住模型的「代理框架」：agent loop、context 管理、工具執行、重試等。需要隨模型演化持續維護。</dd>
-      <dt>Agent（/v1/agents）</dt><dd>人格＋能力：模型、system prompt、工具、MCP、Skills。版本化且不可變。比喻：大腦。</dd>
-      <dt>Environment（/v1/environments）</dt><dd>容器設定＋networking 護欄（允許清單）。設定一次、到處重用。比喻：手。</dd>
-      <dt>Session（/v1/sessions）</dt><dd>Agent×Environment 的一次互動。事件 append 至 log、可串流、可恢復、可刪除。</dd>
-      <dt>Event</dt><dd>session 的溝通單位，命名為 {domain}.{action}，如 user.message、agent.custom_tool_use。</dd>
-      <dt>Sandbox</dt><dd>按需供應的工具執行容器（「手」）。只在工具真的需要時開出來。</dd>
-      <dt>Custom tool（local tool）</dt><dd>由你的程式在自己這端執行的工具：收到 agent.custom_tool_use 事件 → 本地執行 → 回傳 user.custom_tool_result。</dd>
-      <dt>Context engineering</dt><dd>決定餵什麼資料、怎麼讓 Agent 處理這些資料的工程——開發者花最多時間的地方。</dd>
-      <dt>Context anxiety</dt><dd>Sonnet 4.5 曾出現的行為：context 還有空間卻提早收尾任務。Opus 4.5 後消失——harness 需隨模型演化的例證。</dd>
-      <dt>TTFT</dt><dd>Time to first token。大腦／手分離後，P95 TTFT 降低超過 90%。</dd>
-      <dt>Dreaming</dt><dd>記憶服務：Claude 回顧自己的記憶 log，自行決定保留什麼，實現自我改進。</dd>
-      <dt>Outcomes</dt><dd>以 rubric 定義期望結果，讓 Agent 自行規劃工具呼叫去達成；產出獨立的結構化 artifact。</dd>
-      <dt>Vaults</dt><dd>每使用者憑證保管庫，與 Agent 可接觸內容加密隔離，以 vault_ids 引用。</dd>
-    </dl>
+    <div class="g-grid">
+      <div class="g-item"><div class="g-term">Managed Agents（CMA）</div><div class="g-def">讓 Claude 以自主 Agent 形式跑在 Anthropic 受管基礎設施上的一組可組合 API。Beta header：managed-agents-2026-04-01。</div></div>
+      <div class="g-item"><div class="g-term">Harness</div><div class="g-def">包住模型的「代理框架」：agent loop、context 管理、工具執行、重試等。需要隨模型演化持續維護。</div></div>
+      <div class="g-item"><div class="g-term">Agent（/v1/agents）</div><div class="g-def">人格＋能力：模型、system prompt、工具、MCP、Skills。版本化且不可變。比喻：大腦。</div></div>
+      <div class="g-item"><div class="g-term">Environment（/v1/environments）</div><div class="g-def">容器設定＋networking 護欄（允許清單）。設定一次、到處重用。比喻：手。</div></div>
+      <div class="g-item"><div class="g-term">Session（/v1/sessions）</div><div class="g-def">Agent×Environment 的一次互動。事件 append 至 log、可串流、可恢復、可刪除。</div></div>
+      <div class="g-item"><div class="g-term">Event</div><div class="g-def">session 的溝通單位，命名為 {domain}.{action}，如 user.message、agent.custom_tool_use。</div></div>
+      <div class="g-item"><div class="g-term">Sandbox</div><div class="g-def">按需供應的工具執行容器（「手」）。只在工具真的需要時開出來。</div></div>
+      <div class="g-item"><div class="g-term">Custom tool（local tool）</div><div class="g-def">由你的程式在自己這端執行的工具：收到 agent.custom_tool_use 事件 → 本地執行 → 回傳 user.custom_tool_result。</div></div>
+      <div class="g-item"><div class="g-term">Context engineering</div><div class="g-def">決定餵什麼資料、怎麼讓 Agent 處理這些資料的工程——開發者花最多時間的地方。</div></div>
+      <div class="g-item"><div class="g-term">Context anxiety</div><div class="g-def">Sonnet 4.5 曾出現的行為：context 還有空間卻提早收尾任務。Opus 4.5 後消失——harness 需隨模型演化的例證。</div></div>
+      <div class="g-item"><div class="g-term">TTFT</div><div class="g-def">Time to first token。大腦／手分離後，P95 TTFT 降低超過 90%。</div></div>
+      <div class="g-item"><div class="g-term">Dreaming</div><div class="g-def">記憶服務：Claude 回顧自己的記憶 log，自行決定保留什麼，實現自我改進。</div></div>
+      <div class="g-item"><div class="g-term">Outcomes</div><div class="g-def">以 rubric 定義期望結果，讓 Agent 自行規劃工具呼叫去達成；產出獨立的結構化 artifact。</div></div>
+      <div class="g-item"><div class="g-term">Vaults</div><div class="g-def">每使用者憑證保管庫，與 Agent 可接觸內容加密隔離，以 vault_ids 引用。</div></div>
+    </div>
   </div>
 </section>
 
