@@ -50,6 +50,15 @@ Anthropic 開發者大會（Code with Claude）匯聚全球頂尖 AI 工程師�
 | 23 | Getting More Out of the Claude Platform | Punit Sha · Ben | Anthropic |
 | 24 | Running an AI-native Engineering Org | Fiona Fung | Anthropic |
 
+### Workshop — 動手實作場
+
+| 場次 | 標題 | 講者 | 形式 |
+|------|------|------|------|
+| Workshop | [Ship your first Managed Agent](workshop_ship_your_first_managed_agent_教學.html) | Isabella He · Applied AI, Anthropic | 圖文教學（影片截圖＋程式碼＋🔰 新手補充框） |
+
+> 此份教學整理自 [官方 YouTube 影片](https://www.youtube.com/watch?v=19HDQ9HppOA)（37 分鐘）：用七個函式在 Claude Managed Agents 上打造 SRE 事故調查 Agent。教學內每張截圖與章節時間戳皆可點回影片對應秒數。
+> 線上閱讀：https://eugeneintw.github.io/code-with-claude-london-2026/workshop_ship_your_first_managed_agent_教學.html
+
 ---
 
 ## 資料來源
